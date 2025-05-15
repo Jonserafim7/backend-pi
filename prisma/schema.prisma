@@ -12,3 +12,226 @@ datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
+
+enum PapelUsuario {
+  DIRETOR
+  COORDENADOR
+  PROFESSOR
+}
+
+enum DiaSemana {
+  SEGUNDA
+  TERCA
+  QUARTA
+  QUINTA
+  SEXTA
+  SABADO
+}
+
+enum StatusDisponibilidade {
+  DISPONIVEL
+  INDISPONIVEL
+}
+
+enum PropostaHorarioStatus {
+  DRAFT
+  PENDENTE_APROVACAO
+  APROVADA
+  REJEITADA
+}
+
+model Usuario {
+  id                String    @id @default(cuid())
+  nome              String
+  email             String    @unique
+  hashSenha         String    @map("hash_senha")
+  papel             PapelUsuario
+  dataCriacao       DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao   DateTime  @updatedAt @map("data_atualizacao")
+
+  cursosCoordenados               Curso[]                      @relation("CoordenadorPrincipalCurso")
+  disponibilidades                DisponibilidadeProfessor[]   @relation("ProfessorDisponibilidades")
+  turmasProfessor                 Turma[]                      @relation("ProfessorTurmas")
+  disciplinasOfertadasCoordenador DisciplinaOfertada[]       @relation("CoordenadorOfertas")
+  propostasSubmetidas             PropostaHorario[]          @relation("CoordenadorPropostasSubmetidas")
+
+  @@map("usuarios")
+}
+
+model Curso {
+  id                String    @id @default(cuid())
+  nome              String
+  codigo            String?   @unique @map("codigo")
+  idCoordenador     String    @map("id_coordenador")
+  dataCriacao       DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao   DateTime  @updatedAt @map("data_atualizacao")
+
+  coordenadorPrincipal  Usuario              @relation("CoordenadorPrincipalCurso", fields: [idCoordenador], references: [id])
+  matrizesCurriculares  MatrizCurricular[]
+  propostasHorario      PropostaHorario[]
+
+  @@map("cursos")
+}
+
+model ConfiguracaoHorario {
+  id                        String   @id @default(cuid())
+  duracaoAulaMinutos        Int      @map("duracao_aula_minutos")
+  qtdAulasPorBloco          Int      @map("qtd_aulas_por_bloco")
+  inicioTurnoManha          String   @map("inicio_turno_manha")
+  fimTurnoManha             String   @map("fim_turno_manha")
+  inicioTurnoTarde          String   @map("inicio_turno_tarde")
+  fimTurnoTarde             String   @map("fim_turno_tarde")
+  inicioTurnoNoite          String   @map("inicio_turno_noite")
+  fimTurnoNoite             String   @map("fim_turno_noite")
+  dataCriacao               DateTime @default(now()) @map("data_criacao")
+  dataAtualizacao           DateTime @updatedAt @map("data_atualizacao")
+
+  @@map("configuracoes_horario")
+}
+
+model PeriodoLetivo {
+  id                                String    @id @default(cuid())
+  ano                               Int
+  semestre                          Int
+  dataInicio                        DateTime? @map("data_inicio")
+  dataFim                           DateTime? @map("data_fim")
+  dataCriacao                       DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao                   DateTime  @updatedAt @map("data_atualizacao")
+
+  disciplinasOfertadasPeriodo       DisciplinaOfertada[]        @relation("PeriodoLetivoDisciplinaOfertada")
+  disponibilidadesProfessorPeriodo  DisponibilidadeProfessor[]  @relation("PeriodoLetivoDisponibilidadeProfessor")
+  propostasHorario                  PropostaHorario[]           @relation("PeriodoLetivoPropostas")
+
+  @@unique([ano, semestre])
+  @@map("periodos_letivos")
+}
+
+model MatrizCurricular {
+  id                          String    @id @default(cuid())
+  nome                        String
+  idCurso                     String    @map("id_curso")
+  dataCriacao                 DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao             DateTime  @updatedAt @map("data_atualizacao")
+
+  curso                       Curso                @relation(fields: [idCurso], references: [id], onDelete: Cascade)
+  disciplinasDaMatriz         MatrizDisciplina[]
+
+  @@map("matrizes_curriculares")
+}
+
+model Disciplina {
+  id                    String    @id @default(cuid())
+  nome                  String
+  codigo                String?   @unique @map("codigo")
+  cargaHoraria          Int       @map("carga_horaria")
+  dataCriacao           DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao       DateTime  @updatedAt @map("data_atualizacao")
+
+  matrizesOndeAparece   MatrizDisciplina[]
+  ofertasDaDisciplina   DisciplinaOfertada[]
+
+  @@map("disciplinas")
+}
+
+model MatrizDisciplina {
+  idMatrizCurricular  String   @map("id_matriz_curricular")
+  idDisciplina        String   @map("id_disciplina")
+  numeroPeriodo       Int?     @map("numero_periodo")
+  dataCriacao         DateTime @default(now()) @map("data_criacao")
+
+  matrizCurricular    MatrizCurricular @relation(fields: [idMatrizCurricular], references: [id], onDelete: Cascade)
+  disciplina          Disciplina       @relation(fields: [idDisciplina], references: [id], onDelete: Cascade)
+
+  @@id([idMatrizCurricular, idDisciplina])
+  @@map("matrizes_disciplinas")
+}
+
+model DisponibilidadeProfessor {
+  id                  String                @id @default(cuid())
+  idUsuarioProfessor  String                @map("id_usuario_professor")
+  idPeriodoLetivo     String                @map("id_periodo_letivo")
+  diaDaSemana         DiaSemana             @map("dia_da_semana")
+  horaInicio          String                @map("hora_inicio")
+  horaFim             String                @map("hora_fim")
+  status              StatusDisponibilidade
+  dataCriacao         DateTime              @default(now()) @map("data_criacao")
+  dataAtualizacao     DateTime              @updatedAt @map("data_atualizacao")
+
+  usuarioProfessor    Usuario               @relation("ProfessorDisponibilidades", fields: [idUsuarioProfessor], references: [id], onDelete: Cascade)
+  periodoLetivo       PeriodoLetivo         @relation("PeriodoLetivoDisponibilidadeProfessor", fields: [idPeriodoLetivo], references: [id], onDelete: Cascade)
+
+  @@unique([idUsuarioProfessor, idPeriodoLetivo, diaDaSemana, horaInicio, horaFim], name: "idx_disponibilidade_unica")
+  @@map("disponibilidades_professor")
+}
+
+model DisciplinaOfertada {
+  id                         String   @id @default(cuid())
+  idDisciplina               String   @map("id_disciplina")
+  idPeriodoLetivo            String   @map("id_periodo_letivo")
+  quantidadeTurmas           Int      @map("quantidade_turmas")
+  idCoordenador              String   @map("id_coordenador")
+  dataCriacao                DateTime @default(now()) @map("data_criacao")
+  dataAtualizacao            DateTime @updatedAt @map("data_atualizacao")
+
+  disciplina                 Disciplina     @relation(fields: [idDisciplina], references: [id])
+  periodoLetivo              PeriodoLetivo  @relation("PeriodoLetivoDisciplinaOfertada", fields: [idPeriodoLetivo], references: [id])
+  coordenadorQueOfertou      Usuario        @relation("CoordenadorOfertas", fields: [idCoordenador], references: [id])
+  turmas                     Turma[]
+
+  @@map("disciplinas_ofertadas")
+}
+
+model Turma {
+  id                      String    @id @default(cuid())
+  idDisciplinaOfertada    String    @map("id_disciplina_ofertada")
+  codigoDaTurma           String    @map("codigo_da_turma")
+  idUsuarioProfessor      String?   @map("id_usuario_professor")
+  dataCriacao             DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao         DateTime  @updatedAt @map("data_atualizacao")
+
+  disciplinaOfertada      DisciplinaOfertada    @relation(fields: [idDisciplinaOfertada], references: [id], onDelete: Cascade)
+  professorAlocado        Usuario?              @relation("ProfessorTurmas", fields: [idUsuarioProfessor], references: [id])
+  alocacoesDeHorario      AlocacaoHorario[]
+
+  @@unique([idDisciplinaOfertada, codigoDaTurma], name: "idx_turma_unica_por_disciplina")
+  @@map("turmas")
+}
+
+model AlocacaoHorario {
+  id                String    @id @default(cuid())
+  idTurma           String    @map("id_turma")
+  idPropostaHorario String?   @map("id_proposta_horario")
+  diaDaSemana       DiaSemana @map("dia_da_semana")
+  horaInicio        String    @map("hora_inicio")
+  horaFim           String    @map("hora_fim")
+  dataCriacao       DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao   DateTime  @updatedAt @map("data_atualizacao")
+
+  turma             Turma     @relation(fields: [idTurma], references: [id], onDelete: Cascade)
+  propostaHorario   PropostaHorario? @relation("PropostaContemAlocacoes", fields: [idPropostaHorario], references: [id], onDelete: SetNull)
+
+  @@unique([idTurma, diaDaSemana, horaInicio, horaFim], name: "idx_alocacao_unica_por_turma_horario")
+  @@map("alocacoes_horarios")
+}
+
+model PropostaHorario {
+  id                       String                 @id @default(cuid())
+  idCurso                  String                 @map("id_curso")
+  idPeriodoLetivo          String                 @map("id_periodo_letivo")
+  idCoordenadorSubmissao   String                 @map("id_coordenador_submissao")
+  status                   PropostaHorarioStatus  @default(DRAFT)
+  dataSubmissao            DateTime?              @map("data_submissao")
+  dataAprovacaoRejeicao    DateTime?              @map("data_aprovacao_rejeicao")
+  justificativaRejeicao    String?                @map("justificativa_rejeicao")
+  observacoesCoordenador   String?                @map("observacoes_coordenador")
+  observacoesDiretor       String?                @map("observacoes_diretor")
+  dataCriacao              DateTime               @default(now()) @map("data_criacao")
+  dataAtualizacao          DateTime               @updatedAt @map("data_atualizacao")
+
+  curso                    Curso                  @relation(fields: [idCurso], references: [id], onDelete: Cascade)
+  periodoLetivo            PeriodoLetivo          @relation("PeriodoLetivoPropostas", fields: [idPeriodoLetivo], references: [id])
+  coordenadorQueSubmeteu   Usuario                @relation("CoordenadorPropostasSubmetidas", fields: [idCoordenadorSubmissao], references: [id])
+  alocacoesPropostas       AlocacaoHorario[]      @relation("PropostaContemAlocacoes")
+
+  @@map("propostas_horario")
+}

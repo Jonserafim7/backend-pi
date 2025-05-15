@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
-import { PapelUsuarioDtoEnum } from "./papel-usuario.enum"
+import { PapelUsuario } from "@prisma/client"
 
 export class UsuarioResponseDto {
   @ApiProperty({
@@ -21,11 +21,11 @@ export class UsuarioResponseDto {
   email: string
 
   @ApiProperty({
-    enum: PapelUsuarioDtoEnum,
-    example: PapelUsuarioDtoEnum.PROFESSOR,
+    enum: PapelUsuario,
+    example: PapelUsuario.PROFESSOR,
     description: "Papel do usuário no sistema",
   })
-  papel: PapelUsuarioDtoEnum
+  papel: PapelUsuario
 
   @ApiProperty({
     example: "2023-01-01T10:00:00.000Z",

@@ -32,6 +32,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config)
   SwaggerModule.setup("api-docs", app, document)
 
+  // Habilitar shutdown hooks para o PrismaService (e outros módulos que implementam OnModuleDestroy)
+  app.enableShutdownHooks()
+
   await app.listen(process.env.PORT ?? 3000)
 }
 bootstrap()

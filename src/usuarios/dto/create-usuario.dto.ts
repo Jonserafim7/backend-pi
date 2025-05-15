@@ -1,6 +1,6 @@
 import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength } from "class-validator"
 import { ApiProperty } from "@nestjs/swagger"
-import { PapelUsuarioDtoEnum } from "./papel-usuario.enum"
+import { PapelUsuario } from "@prisma/client"
 
 export class CreateUsuarioDto {
   @ApiProperty({
@@ -31,10 +31,10 @@ export class CreateUsuarioDto {
 
   @ApiProperty({
     description: "Papel do usuário no sistema",
-    enum: PapelUsuarioDtoEnum,
-    example: PapelUsuarioDtoEnum.PROFESSOR,
+    enum: PapelUsuario,
+    example: PapelUsuario.PROFESSOR,
   })
-  @IsEnum(PapelUsuarioDtoEnum, { message: "Papel de usuário inválido." })
+  @IsEnum(PapelUsuario, { message: "Papel de usuário inválido." })
   @IsNotEmpty({ message: "O papel do usuário não pode estar vazio." })
-  papel: PapelUsuarioDtoEnum
+  papel: PapelUsuario
 }

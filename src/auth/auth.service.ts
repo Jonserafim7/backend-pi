@@ -5,13 +5,11 @@ import {
   ConflictException,
 } from "@nestjs/common"
 import { JwtService } from "@nestjs/jwt"
-import { PrismaService } from "../../core/prisma/prisma.service"
-import { SignInDto } from "../dto/signin.dto"
-import { AuthResponseDto } from "../dto/auth.response.dto"
+import { PrismaService } from "../core/prisma/prisma.service"
+import { SignInDto, AuthResponseDto } from "./dto"
 import * as bcrypt from "bcrypt"
-import { JwtPayload } from "../jwt.strategy"
-import { CreateUsuarioDto } from "../../usuarios/dto/create-usuario.dto"
-import { UsuarioResponseDto } from "../../usuarios/dto/usuario.response.dto"
+import { JwtPayload } from "./jwt.strategy"
+import { CreateUsuarioDto, UsuarioResponseDto } from "../usuarios/dto"
 
 @Injectable()
 export class AuthService {
@@ -23,6 +21,11 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  /**
+   * Autentica um usuário com e-mail e senha
+   * @param signInDto Dados de login (e-mail e senha)
+   * @returns Objeto com token de acesso e dados do usuário
+   */
   async signIn(signInDto: SignInDto): Promise<AuthResponseDto> {
     const { email, senha } = signInDto
     this.logger.log(`Tentativa de login para o e-mail: ${email}`)
@@ -64,6 +67,11 @@ export class AuthService {
     }
   }
 
+  /**
+   * Cadastra um novo usuário no sistema
+   * @param createUsuarioDto Dados do usuário a ser cadastrado
+   * @returns Dados do usuário cadastrado sem a senha
+   */
   async cadastrarUsuario(
     createUsuarioDto: CreateUsuarioDto,
   ): Promise<UsuarioResponseDto> {

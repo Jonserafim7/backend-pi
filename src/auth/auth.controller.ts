@@ -6,13 +6,11 @@ import {
   HttpStatus,
   Logger,
 } from "@nestjs/common"
-import { AuthService } from "../services/auth.service"
-import { SignInDto } from "../dto/signin.dto"
-import { CreateUsuarioDto } from "../../usuarios/dto/create-usuario.dto"
-import { AuthResponseDto } from "../dto/auth.response.dto"
-import { UsuarioResponseDto } from "../../usuarios/dto/usuario.response.dto"
+import { AuthService } from "./auth.service"
+import { SignInDto, AuthResponseDto } from "./dto"
+import { CreateUsuarioDto, UsuarioResponseDto } from "../usuarios/dto"
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from "@nestjs/swagger"
-import { Public } from "../decorators/public.decorator"
+import { Public } from "./decorators/public.decorator"
 
 @ApiTags("auth")
 @Controller("auth")
@@ -39,9 +37,15 @@ export class AuthController {
     status: HttpStatus.UNAUTHORIZED,
     description: "Credenciais inválidas.",
   })
+  /**
+   * Autentica um usuário e retorna um token JWT
+   * @param signInDto Dados de login (e-mail e senha)
+   * @returns Objeto com token de acesso e dados do usuário
+   */
   async signIn(@Body() signInDto: SignInDto): Promise<AuthResponseDto> {
     this.logger.log(`Requisição de login recebida para: ${signInDto.email}`)
-    return this.authService.signIn(signInDto)
+    const response = await this.authService.signIn(signInDto)
+    return response
   }
 
   @Public()
@@ -67,12 +71,18 @@ export class AuthController {
     status: HttpStatus.BAD_REQUEST,
     description: "Dados inválidos fornecidos para o cadastro.",
   })
+  /**
+   * Registra um novo usuário no sistema
+   * @param createUsuarioDto Dados do usuário a ser cadastrado
+   * @returns Dados do usuário cadastrado sem a senha
+   */
   async signUp(
     @Body() createUsuarioDto: CreateUsuarioDto,
   ): Promise<UsuarioResponseDto> {
     this.logger.log(
       `Requisição de registro recebida para: ${createUsuarioDto.email}`,
     )
-    return this.authService.cadastrarUsuario(createUsuarioDto)
+    const usuario = await this.authService.cadastrarUsuario(createUsuarioDto)
+    return usuario
   }
 }

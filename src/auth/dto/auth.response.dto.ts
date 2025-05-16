@@ -1,5 +1,4 @@
 import { ApiProperty } from "@nestjs/swagger"
-import { PapelUsuario } from "@prisma/client"
 import { UsuarioResponseDto } from "../../usuarios/dto/usuario.response.dto"
 
 export class AuthResponseDto {
@@ -15,4 +14,9 @@ export class AuthResponseDto {
     type: () => UsuarioResponseDto,
   })
   usuario: UsuarioResponseDto
+
+  constructor(accessToken: string, usuario: UsuarioResponseDto) {
+    this.accessToken = accessToken
+    this.usuario = usuario
+  }
 }

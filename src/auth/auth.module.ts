@@ -11,7 +11,7 @@ import { JwtStrategy } from "./jwt.strategy"
     PassportModule.register({ defaultStrategy: "jwt" }),
     JwtModule.registerAsync({
       imports: [ConfigModule], // ConfigModule já é global, mas é bom ser explícito se necessário em contextos isolados.
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>("JWT_SECRET"),
         signOptions: {
           expiresIn: configService.get<string>("JWT_EXPIRATION_TIME"),

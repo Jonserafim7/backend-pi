@@ -12,7 +12,6 @@ import * as bcrypt from "bcrypt"
 import { JwtPayload } from "../jwt.strategy"
 import { CreateUsuarioDto } from "../../usuarios/dto/create-usuario.dto"
 import { UsuarioResponseDto } from "../../usuarios/dto/usuario.response.dto"
-import { PapelUsuario } from "@prisma/client"
 
 @Injectable()
 export class AuthService {
@@ -51,11 +50,12 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: usuario.id,
       email: usuario.email,
-      papel: usuario.papel as PapelUsuario,
+      papel: usuario.papel,
     }
 
     const accessToken = this.jwtService.sign(payload)
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { hashSenha, ...dadosUsuario } = usuario
 
     return {
@@ -94,6 +94,7 @@ export class AuthService {
       `Usuário cadastrado com sucesso: ${email} (ID: ${novoUsuario.id})`,
     )
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { hashSenha: _, ...dadosRetorno } = novoUsuario
     return dadosRetorno as UsuarioResponseDto
   }

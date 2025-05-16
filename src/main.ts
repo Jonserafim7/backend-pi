@@ -2,9 +2,22 @@ import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module"
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger"
 import { ValidationPipe } from "@nestjs/common"
+import { Request, Response } from "express"
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
+
+  // Enable CORS
+  app.enableCors({
+    origin: [
+      "http://localhost:5173", // Vite default port
+      "http://127.0.0.1:5173",
+      // Add production URLs here when deploying
+    ],
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    credentials: true,
+    allowedHeaders: "Content-Type, Accept, Authorization",
+  })
 
   // Configuração do ValidationPipe global
   app.useGlobalPipes(
@@ -27,14 +40,22 @@ async function bootstrap() {
     .addTag("auth", "Operações de Autenticação")
     .addTag("usuarios", "Gerenciamento de Usuários")
     .addTag("cursos", "Gerenciamento de Cursos")
-    // .addBearerAuth() // Descomentar quando JWT estiver configurado
+    .addBearerAuth()
     .build()
   const document = SwaggerModule.createDocument(app, config)
+  // Setup Swagger UI at /api-docs
   SwaggerModule.setup("api-docs", app, document)
+  // Expose the raw Swagger JSON at /api-docs-json for Orval to consume
+  app.use("/api-docs-json", (req: Request, res: Response) => {
+    res.json(document)
+  })
 
   // Habilitar shutdown hooks para o PrismaService (e outros módulos que implementam OnModuleDestroy)
   app.enableShutdownHooks()
 
   await app.listen(process.env.PORT ?? 3000)
 }
-bootstrap()
+bootstrap().catch((error) => {
+  console.error("Failed to start the application:", error)
+  process.exit(1)
+})

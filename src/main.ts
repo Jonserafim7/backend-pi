@@ -37,9 +37,6 @@ async function bootstrap() {
       "Documentação da API para o Sistema de Elaboração de Horário e Atribuição de Disciplinas",
     )
     .setVersion("1.0")
-    .addTag("auth", "Operações de Autenticação")
-    .addTag("usuarios", "Gerenciamento de Usuários")
-    .addTag("cursos", "Gerenciamento de Cursos")
     .addBearerAuth()
     .build()
   const document = SwaggerModule.createDocument(app, config)

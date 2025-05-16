@@ -11,6 +11,7 @@ import {
   DefaultValuePipe,
   BadRequestException,
   UseGuards,
+  Req,
 } from "@nestjs/common"
 import {
   ApiTags,
@@ -23,14 +24,16 @@ import {
 import { Roles } from "../auth/decorators/roles.decorator"
 import { RolesGuard } from "../auth/guards/roles.guard"
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"
+import { RequestWithUser } from "../auth/interfaces/request-with-user.interface"
 import { PapelUsuario } from "@prisma/client"
 import { UsuariosService } from "./usuarios.service"
 import { CreateUsuarioDto } from "./dto/create-usuario.dto"
 import { FindUsersDto } from "./dto/find-users.dto"
 import { UpdateUsuarioDto } from "./dto/update-usuario.dto"
 import { UsuarioResponseDto } from "./dto/usuario.response.dto"
+import { UsuariosResponseDto } from "./dto/usuarios.response.dto"
 
-@ApiTags("Usuários")
+@ApiTags("Usuarios")
 @Controller("usuarios")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
@@ -38,7 +41,7 @@ export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
   @Post()
-  @Roles(PapelUsuario.DIRETOR)
+  @Roles(PapelUsuario.ADMIN)
   @ApiOperation({ summary: "Cria um novo usuário" })
   @ApiResponse({
     status: 201,
@@ -63,12 +66,14 @@ export class UsuariosController {
   })
   async create(
     @Body() createUsuarioDto: CreateUsuarioDto,
+    @Req() req: RequestWithUser,
   ): Promise<UsuarioResponseDto> {
-    return this.usuariosService.create(createUsuarioDto)
+    const usuarioAtual = { id: req.user.id, papel: req.user.papel }
+    return this.usuariosService.create(createUsuarioDto, usuarioAtual)
   }
 
   @Get()
-  @Roles(PapelUsuario.DIRETOR, PapelUsuario.COORDENADOR)
+  @Roles(PapelUsuario.ADMIN, PapelUsuario.DIRETOR, PapelUsuario.COORDENADOR)
   @ApiOperation({ summary: "Lista usuários com filtros e paginação" })
   @ApiQuery({
     name: "busca",
@@ -97,19 +102,7 @@ export class UsuariosController {
   @ApiResponse({
     status: 200,
     description: "Lista de usuários retornada com sucesso",
-    schema: {
-      type: "object",
-      properties: {
-        data: {
-          type: "array",
-          items: { $ref: "#/components/schemas/UsuarioResponseDto" },
-        },
-        total: { type: "number", example: 100 },
-        paginas: { type: "number", example: 10 },
-        pagina: { type: "number", example: 1 },
-        limite: { type: "number", example: 10 },
-      },
-    },
+    type: UsuariosResponseDto,
   })
   @ApiResponse({
     status: 401,
@@ -123,7 +116,7 @@ export class UsuariosController {
     @Query() findUsersDto: FindUsersDto,
     @Query("pagina", new DefaultValuePipe(1), ParseIntPipe) pagina: number,
     @Query("limite", new DefaultValuePipe(10), ParseIntPipe) limite: number,
-  ) {
+  ): Promise<UsuariosResponseDto> {
     // Limita o número máximo de itens por página para 100
     if (limite > 100) {
       limite = 100
@@ -139,7 +132,12 @@ export class UsuariosController {
   }
 
   @Get(":id")
-  @Roles(PapelUsuario.DIRETOR, PapelUsuario.COORDENADOR, PapelUsuario.PROFESSOR)
+  @Roles(
+    PapelUsuario.ADMIN as PapelUsuario,
+    PapelUsuario.DIRETOR as PapelUsuario,
+    PapelUsuario.COORDENADOR as PapelUsuario,
+    PapelUsuario.PROFESSOR as PapelUsuario,
+  )
   @ApiOperation({ summary: "Obtém um usuário pelo ID" })
   @ApiParam({
     name: "id",
@@ -169,7 +167,7 @@ export class UsuariosController {
   }
 
   @Patch(":id")
-  @Roles(PapelUsuario.DIRETOR)
+  @Roles(PapelUsuario.ADMIN as PapelUsuario)
   @ApiOperation({ summary: "Atualiza um usuário" })
   @ApiParam({
     name: "id",
@@ -201,12 +199,14 @@ export class UsuariosController {
   async update(
     @Param("id") id: string,
     @Body() updateUsuarioDto: UpdateUsuarioDto,
+    @Req() req: RequestWithUser,
   ): Promise<UsuarioResponseDto> {
-    return this.usuariosService.update(id, updateUsuarioDto)
+    const usuarioAtual = { id: req.user.id, papel: req.user.papel }
+    return this.usuariosService.update(id, updateUsuarioDto, usuarioAtual)
   }
 
   @Delete(":id")
-  @Roles(PapelUsuario.DIRETOR)
+  @Roles(PapelUsuario.ADMIN as PapelUsuario)
   @ApiOperation({ summary: "Remove um usuário" })
   @ApiParam({
     name: "id",
@@ -235,7 +235,11 @@ export class UsuariosController {
     status: 403,
     description: "Acesso negado",
   })
-  async remove(@Param("id") id: string): Promise<void> {
-    await this.usuariosService.remove(id)
+  async remove(
+    @Param("id") id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<void> {
+    const usuarioAtual = { id: req.user.id, papel: req.user.papel }
+    await this.usuariosService.remove(id, usuarioAtual)
   }
 }

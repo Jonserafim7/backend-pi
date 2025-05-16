@@ -12,7 +12,7 @@ import { CreateUsuarioDto, UsuarioResponseDto } from "../usuarios/dto"
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from "@nestjs/swagger"
 import { Public } from "./decorators/public.decorator"
 
-@ApiTags("auth")
+@ApiTags("Auth")
 @Controller("auth")
 export class AuthController {
   private readonly logger = new Logger(AuthController.name)

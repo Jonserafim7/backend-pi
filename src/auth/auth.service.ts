@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   Logger,
   ConflictException,
+  // ForbiddenException, // Comentado pois não está sendo usado no momento
 } from "@nestjs/common"
 import { JwtService } from "@nestjs/jwt"
 import { PrismaService } from "../core/prisma/prisma.service"
@@ -47,6 +48,16 @@ export class AuthService {
       )
       throw new UnauthorizedException("Credenciais inválidas.")
     }
+
+    // Verificamos se o usuário está ativo apenas se tivermos esse campo no modelo
+    // Por padrão, consideramos todos os usuários como ativos
+    // Se implementarmos o campo 'ativo' no futuro, podemos descomentar esta verificação
+    /*
+    if (usuario.papel === "ADMIN" && usuario.ativo === false) {
+      this.logger.warn(`Usuário inativo para o e-mail: ${email}`)
+      throw new ForbiddenException("Usuário inativo.")
+    }
+    */
 
     this.logger.log(`Login bem-sucedido para o e-mail: ${email}`)
 

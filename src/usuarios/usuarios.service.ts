@@ -10,6 +10,7 @@ import { PrismaService } from "../core/prisma/prisma.service"
 import { CreateUsuarioDto } from "./dto/create-usuario.dto"
 import { FindUsersDto } from "./dto/find-users.dto"
 import { UpdateUsuarioDto } from "./dto/update-usuario.dto"
+import { UsuariosResponseDto } from "./dto/usuarios.response.dto"
 import { UsuarioResponseDto } from "./dto/usuario.response.dto"
 import * as bcrypt from "bcrypt"
 
@@ -23,10 +24,24 @@ export class UsuariosService {
   /**
    * Cria um novo usuário no sistema
    * @param createUsuarioDto Dados do usuário a ser criado
+   * @param usuarioAtual Opcional: Usuário que está realizando a operação
    * @returns Usuário criado sem a senha
    */
-  async create(createUsuarioDto: CreateUsuarioDto): Promise<UsuarioResponseDto> {
-    const { email, senha, ...rest } = createUsuarioDto
+  async create(
+    createUsuarioDto: CreateUsuarioDto,
+    usuarioAtual?: { id: string; papel: string },
+  ): Promise<UsuarioResponseDto> {
+    const { email, senha, papel, ...rest } = createUsuarioDto
+
+    // Verificações de segurança para o papel Admin
+    if (papel === "ADMIN" && usuarioAtual && usuarioAtual.papel !== "ADMIN") {
+      this.logger.warn(
+        `Tentativa de criar usuário Admin por usuário não autorizado: ${usuarioAtual.id}`,
+      )
+      throw new BadRequestException(
+        "Apenas administradores podem criar outros administradores.",
+      )
+    }
 
     // Verifica se o e-mail já está em uso
     const usuarioExistente = await this.prisma.usuario.findUnique({
@@ -46,6 +61,7 @@ export class UsuariosService {
         data: {
           ...rest,
           email,
+          papel,
           hashSenha,
         },
       })
@@ -77,13 +93,7 @@ export class UsuariosService {
     findUsersDto: FindUsersDto = {},
     pagina = 1,
     limite = 10,
-  ): Promise<{
-    data: UsuarioResponseDto[]
-    total: number
-    paginas: number
-    pagina: number
-    limite: number
-  }> {
+  ): Promise<UsuariosResponseDto> {
     const { busca, papel } = findUsersDto
     const skip = (pagina - 1) * limite
 
@@ -91,37 +101,64 @@ export class UsuariosService {
     const where: Prisma.UsuarioWhereInput = {}
 
     if (busca) {
-      where.OR = [{ nome: { contains: busca } }, { email: { contains: busca } }]
+      const buscaLower = busca.toLowerCase()
+      where.OR = [
+        { nome: { contains: buscaLower } },
+        { email: { contains: buscaLower } },
+      ]
     }
 
     if (papel) {
       where.papel = papel
     }
 
-    const [total, usuarios] = await Promise.all([
-      this.prisma.usuario.count({ where }),
-      this.prisma.usuario.findMany({
-        where,
-        skip,
-        take: limite,
-        orderBy: { nome: "asc" },
-        select: {
-          id: true,
-          nome: true,
-          email: true,
-          papel: true,
-          dataCriacao: true,
-          dataAtualizacao: true,
-        },
-      }),
-    ])
+    try {
+      const [total, usuarios] = await Promise.all([
+        this.prisma.usuario.count({ where }),
+        this.prisma.usuario.findMany({
+          where,
+          skip,
+          take: limite,
+          orderBy: { nome: "asc" },
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+            papel: true,
+            dataCriacao: true,
+            dataAtualizacao: true,
+          },
+        }),
+      ])
 
-    return {
-      data: usuarios as UsuarioResponseDto[],
-      total,
-      paginas: Math.ceil(total / limite),
-      pagina,
-      limite,
+      // Garante que temos um array, mesmo que vazio
+      const safeUsuarios = Array.isArray(usuarios) ? usuarios : []
+
+      return {
+        meta: {
+          total,
+          paginas: Math.ceil(total / limite),
+          pagina,
+          limite,
+        },
+        data: safeUsuarios,
+      }
+    } catch (error: unknown) {
+      this.logger.error(
+        `Erro ao buscar usuários: ${
+          error instanceof Error ? error.message : "Erro desconhecido"
+        }`,
+        error instanceof Error ? error.stack : undefined,
+      )
+      return {
+        meta: {
+          total: 0,
+          paginas: 0,
+          pagina: 1,
+          limite: 10,
+        },
+        data: [],
+      }
     }
   }
 
@@ -154,11 +191,13 @@ export class UsuariosService {
    * Atualiza um usuário existente
    * @param id ID do usuário
    * @param updateUsuarioDto Dados para atualização
+   * @param usuarioAtual Opcional: Usuário que está realizando a operação
    * @returns Usuário atualizado
    */
   async update(
     id: string,
     updateUsuarioDto: UpdateUsuarioDto,
+    usuarioAtual?: { id: string; papel: string },
   ): Promise<UsuarioResponseDto> {
     const { email, senha, ...rest } = updateUsuarioDto
 
@@ -169,6 +208,39 @@ export class UsuariosService {
 
     if (!usuarioExistente) {
       throw new NotFoundException(`Usuário com ID "${id}" não encontrado.`)
+    }
+
+    // Verificações de segurança para papéis protegidos
+    if (usuarioAtual && usuarioAtual.papel !== "ADMIN") {
+      // Apenas Admins podem modificar outros Admins ou Diretores
+      if (
+        usuarioExistente.papel === "ADMIN" ||
+        usuarioExistente.papel === "DIRETOR"
+      ) {
+        this.logger.warn(
+          `Tentativa de atualizar usuário ${usuarioExistente.papel} por usuário não autorizado: ${usuarioAtual.id}`,
+        )
+        throw new BadRequestException(
+          `Apenas administradores podem modificar usuários ${usuarioExistente.papel}.`,
+        )
+      }
+    }
+
+    // Verifica se está tentando mudar o papel para ADMIN ou DIRETOR
+    if (updateUsuarioDto.papel) {
+      if (
+        (updateUsuarioDto.papel === "ADMIN" ||
+          updateUsuarioDto.papel === "DIRETOR") &&
+        usuarioAtual &&
+        usuarioAtual.papel !== "ADMIN"
+      ) {
+        this.logger.warn(
+          `Tentativa de promover usuário para ${updateUsuarioDto.papel} por usuário não autorizado: ${usuarioAtual.id}`,
+        )
+        throw new BadRequestException(
+          `Apenas administradores podem promover usuários para ${updateUsuarioDto.papel}.`,
+        )
+      }
     }
 
     // Se estiver tentando atualizar o e-mail, verifica se já existe outro com o mesmo e-mail
@@ -227,8 +299,12 @@ export class UsuariosService {
   /**
    * Remove um usuário do sistema
    * @param id ID do usuário a ser removido
+   * @param usuarioAtual Opcional: Usuário que está realizando a operação
    */
-  async remove(id: string): Promise<void> {
+  async remove(
+    id: string,
+    usuarioAtual?: { id: string; papel: string },
+  ): Promise<void> {
     // Verifica se o usuário existe
     const usuario = await this.prisma.usuario.findUnique({
       where: { id },
@@ -236,6 +312,19 @@ export class UsuariosService {
 
     if (!usuario) {
       throw new NotFoundException(`Usuário com ID "${id}" não encontrado.`)
+    }
+
+    // Verificações de segurança para papéis protegidos
+    if (usuarioAtual && usuarioAtual.papel !== "ADMIN") {
+      // Apenas Admins podem remover outros Admins ou Diretores
+      if (usuario.papel === "ADMIN" || usuario.papel === "DIRETOR") {
+        this.logger.warn(
+          `Tentativa de remover usuário ${usuario.papel} por usuário não autorizado: ${usuarioAtual.id}`,
+        )
+        throw new BadRequestException(
+          `Apenas administradores podem remover usuários ${usuario.papel}.`,
+        )
+      }
     }
 
     try {

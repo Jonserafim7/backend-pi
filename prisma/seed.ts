@@ -34,10 +34,25 @@ async function main() {
   ])
 
   // 1. Criar usuários
+  const hashSenhaAdmin = await hashPassword("admin123")
   const hashSenhaDiretor = await hashPassword("senha123")
   const hashSenhaCoordenador = await hashPassword("senha123")
   const hashSenhaProfessor1 = await hashPassword("senha123")
   const hashSenhaProfessor2 = await hashPassword("senha123")
+
+  // Criar administrador
+  await prisma.usuario.create({
+    data: {
+      nome: "Admin Sistema",
+      email: "admin@escola.edu",
+      hashSenha: hashSenhaAdmin,
+      papel: PapelUsuario.ADMIN as PapelUsuario,
+    },
+  })
+
+  console.log(
+    "✅ Usuário Admin criado (email: admin@escola.edu, senha: admin123)",
+  )
 
   // Criar diretor
   await prisma.usuario.create({
@@ -45,7 +60,7 @@ async function main() {
       nome: "Ana Diretora",
       email: "diretor@escola.edu",
       hashSenha: hashSenhaDiretor,
-      papel: PapelUsuario.DIRETOR,
+      papel: PapelUsuario.DIRETOR as PapelUsuario,
     },
   })
 
@@ -54,7 +69,7 @@ async function main() {
       nome: "Carlos Coordenador",
       email: "coordenador@escola.edu",
       hashSenha: hashSenhaCoordenador,
-      papel: PapelUsuario.COORDENADOR,
+      papel: PapelUsuario.COORDENADOR as PapelUsuario,
     },
   })
 
@@ -63,7 +78,7 @@ async function main() {
       nome: "Pedro Professor",
       email: "professor1@escola.edu",
       hashSenha: hashSenhaProfessor1,
-      papel: PapelUsuario.PROFESSOR,
+      papel: PapelUsuario.PROFESSOR as PapelUsuario,
     },
   })
 
@@ -72,7 +87,7 @@ async function main() {
       nome: "Maria Professora",
       email: "professor2@escola.edu",
       hashSenha: hashSenhaProfessor2,
-      papel: PapelUsuario.PROFESSOR,
+      papel: PapelUsuario.PROFESSOR as PapelUsuario,
     },
   })
 

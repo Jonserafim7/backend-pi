@@ -7,20 +7,8 @@ import {
 import { PrismaService } from "../core/prisma/prisma.service"
 import { CreateCursoDto } from "./dto/create-curso.dto"
 import { UpdateCursoDto } from "./dto/update-curso.dto"
-import { PapelUsuario, Prisma } from "@prisma/client"
-
-// Tipo para o payload retornado por findAll, incluindo dados selecionados do coordenador
-type CursoComCoordenadorPayload = Prisma.CursoGetPayload<{
-  include: {
-    coordenadorPrincipal: {
-      select: {
-        id: true
-        nome: true
-        email: true
-      }
-    }
-  }
-}>
+import { PapelUsuario } from "@prisma/client"
+import { CursoComCoordenadorPayload } from "./types/curso-com-coordenador-payload.type"
 
 @Injectable()
 export class CursosService {

@@ -34,7 +34,10 @@ export class CreateUsuarioDto {
     enum: PapelUsuario,
     example: PapelUsuario.PROFESSOR,
   })
-  @IsEnum(PapelUsuario, { message: "Papel de usuário inválido." })
+  @IsEnum(PapelUsuario, {
+    message:
+      "Papel inválido. Valores aceitos: ADMIN, DIRETOR, PROFESSOR, COORDENADOR",
+  })
   @IsNotEmpty({ message: "O papel do usuário não pode estar vazio." })
   papel!: PapelUsuario
 }

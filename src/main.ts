@@ -45,10 +45,43 @@ async function bootstrap() {
     swaggerOptions: {
       persistAuthorization: true,
     },
+    customJsStr: `
+window.addEventListener('load', function() {
+  setTimeout(function() { // Adiciona um pequeno delay para garantir que o 'ui' esteja pronto
+    if (!window.ui) {
+      console.error("Swagger UI object (ui) not found. Automatic token authorization might not work.");
+      return;
+    }
+
+    const originalFetch = window.fetch;
+    window.fetch = async function (input, init) {
+      const response = await originalFetch(input, init);
+      const requestUrl = (typeof input === 'string') ? input : input.url;
+
+      // Verifica se é a requisição de login (POST para /auth/login)
+      // e se a resposta foi bem-sucedida (response.ok)
+      if (requestUrl.includes("/auth/login") && response.ok && init && init.method && init.method.toUpperCase() === 'POST') {
+        const clonedResponse = response.clone(); // Clona para poder ler o corpo duas vezes
+        try {
+          const responseBody = await clonedResponse.json();
+          if (responseBody && responseBody.accessToken) {
+            window.ui.preauthorizeApiKey("bearer", responseBody.accessToken);
+            console.log("Bearer token automatically set in Swagger UI from /auth/login response.");
+          } else {
+            console.log("Login response detected, but accessToken not found in body:", responseBody);
+          }
+        } catch (e) {
+          console.error("Error parsing login response or setting token in Swagger UI:", e);
+        }
+      }
+      return response; // Retorna a resposta original para o fluxo normal do Swagger UI
+    };
+    console.log("Custom Swagger UI script for automatic token authorization loaded.");
+  }, 1000); // Delay de 1 segundo para garantir que 'ui' esteja inicializado
+});
+`,
   })
 
-  // Setup Swagger UI at /api-docs
-  SwaggerModule.setup("api-docs", app, document)
   // Expose the raw Swagger JSON at /api-docs-json for Orval to consume
   app.use("/api-docs-json", (req: Request, res: Response) => {
     res.json(document)

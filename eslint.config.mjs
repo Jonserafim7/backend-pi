@@ -28,7 +28,9 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn'
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+      // Desativando a verificação de estilo de quebra de linha (permite CRLF no Windows)
+      'linebreak-style': 'off'
     },
   },
 );

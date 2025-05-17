@@ -43,7 +43,7 @@ enum PropostaHorarioStatus {
 }
 
 model Usuario {
-  id                String    @id @default(cuid())
+  id                String    @id @default(uuid())
   nome              String
   email             String    @unique
   hashSenha         String    @map("hash_senha")
@@ -61,7 +61,7 @@ model Usuario {
 }
 
 model Curso {
-  id                String    @id @default(cuid())
+  id                String    @id @default(uuid())
   nome              String
   codigo            String?   @unique @map("codigo")
   idCoordenador     String    @map("id_coordenador")
@@ -76,7 +76,7 @@ model Curso {
 }
 
 model ConfiguracaoHorario {
-  id                        String   @id @default(cuid())
+  id                        String   @id @default(uuid())
   duracaoAulaMinutos        Int      @map("duracao_aula_minutos")
   qtdAulasPorBloco          Int      @map("qtd_aulas_por_bloco")
   inicioTurnoManha          String   @map("inicio_turno_manha")
@@ -92,7 +92,7 @@ model ConfiguracaoHorario {
 }
 
 model PeriodoLetivo {
-  id                                String    @id @default(cuid())
+  id                                String    @id @default(uuid())
   ano                               Int
   semestre                          Int
   dataInicio                        DateTime? @map("data_inicio")
@@ -109,7 +109,7 @@ model PeriodoLetivo {
 }
 
 model MatrizCurricular {
-  id                          String    @id @default(cuid())
+  id                          String    @id @default(uuid())
   nome                        String
   idCurso                     String    @map("id_curso")
   dataCriacao                 DateTime  @default(now()) @map("data_criacao")
@@ -122,7 +122,7 @@ model MatrizCurricular {
 }
 
 model Disciplina {
-  id                    String    @id @default(cuid())
+  id                    String    @id @default(uuid())
   nome                  String
   codigo                String?   @unique @map("codigo")
   cargaHoraria          Int       @map("carga_horaria")
@@ -149,7 +149,7 @@ model MatrizDisciplina {
 }
 
 model DisponibilidadeProfessor {
-  id                  String                @id @default(cuid())
+  id                  String                @id @default(uuid())
   idUsuarioProfessor  String                @map("id_usuario_professor")
   idPeriodoLetivo     String                @map("id_periodo_letivo")
   diaDaSemana         DiaSemana             @map("dia_da_semana")
@@ -167,7 +167,7 @@ model DisponibilidadeProfessor {
 }
 
 model DisciplinaOfertada {
-  id                         String   @id @default(cuid())
+  id                         String   @id @default(uuid())
   idDisciplina               String   @map("id_disciplina")
   idPeriodoLetivo            String   @map("id_periodo_letivo")
   quantidadeTurmas           Int      @map("quantidade_turmas")
@@ -184,7 +184,7 @@ model DisciplinaOfertada {
 }
 
 model Turma {
-  id                      String    @id @default(cuid())
+  id                      String    @id @default(uuid())
   idDisciplinaOfertada    String    @map("id_disciplina_ofertada")
   codigoDaTurma           String    @map("codigo_da_turma")
   idUsuarioProfessor      String?   @map("id_usuario_professor")
@@ -200,7 +200,7 @@ model Turma {
 }
 
 model AlocacaoHorario {
-  id                String    @id @default(cuid())
+  id                String    @id @default(uuid())
   idTurma           String    @map("id_turma")
   idPropostaHorario String?   @map("id_proposta_horario")
   diaDaSemana       DiaSemana @map("dia_da_semana")
@@ -217,7 +217,7 @@ model AlocacaoHorario {
 }
 
 model PropostaHorario {
-  id                       String                 @id @default(cuid())
+  id                       String                 @id @default(uuid())
   idCurso                  String                 @map("id_curso")
   idPeriodoLetivo          String                 @map("id_periodo_letivo")
   idCoordenadorSubmissao   String                 @map("id_coordenador_submissao")

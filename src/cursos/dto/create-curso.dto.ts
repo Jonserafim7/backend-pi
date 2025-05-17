@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
-import { IsNotEmpty, IsOptional, IsString, IsUUID, Length } from "class-validator"
+import { IsNotEmpty, IsString, IsUUID, Length } from "class-validator"
 
 /**
  * DTO para criação de um novo curso
@@ -32,15 +32,15 @@ export class CreateCursoDto {
   codigo!: string
 
   /**
-   * ID do coordenador principal do curso (opcional na criação)
+   * ID do coordenador principal do curso
    * @example "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
    */
   @ApiProperty({
-    description: "ID do coordenador principal",
+    description: "ID do coordenador principal do curso",
     example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    required: false,
+    required: true,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: "O ID do coordenador é obrigatório" })
   @IsUUID("4", { message: "O ID do coordenador deve ser um UUID válido" })
-  idCoordenador?: string
+  idCoordenador!: string
 }

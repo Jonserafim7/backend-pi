@@ -7,7 +7,6 @@ import {
   Body,
   Param,
   UseGuards,
-  Query,
   ParseUUIDPipe,
   HttpStatus,
 } from "@nestjs/common"
@@ -24,7 +23,6 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
-  ApiQuery,
 } from "@nestjs/swagger"
 import { CursoResponseDto } from "./dto/curso-response.dto"
 
@@ -54,8 +52,11 @@ export class CursosController {
     status: HttpStatus.CONFLICT,
     description: "Já existe um curso com este código",
   })
-  create(@Body() createCursoDto: CreateCursoDto) {
-    return this.cursosService.create(createCursoDto)
+  async create(
+    @Body() createCursoDto: CreateCursoDto,
+  ): Promise<CursoResponseDto> {
+    const curso = await this.cursosService.create(createCursoDto)
+    return new CursoResponseDto(curso)
   }
 
   /**
@@ -63,20 +64,14 @@ export class CursosController {
    */
   @Get()
   @ApiOperation({ summary: "Listar todos os cursos" })
-  @ApiQuery({
-    name: "incluirCoordenador",
-    required: false,
-    type: Boolean,
-    description: "Se true, inclui os dados do coordenador na resposta",
-  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Lista de cursos retornada com sucesso",
     type: [CursoResponseDto],
   })
-  findAll(@Query("incluirCoordenador") incluirCoordenador?: string) {
-    const includeCoordinator = incluirCoordenador === "true"
-    return this.cursosService.findAll(includeCoordinator)
+  async findAll(): Promise<CursoResponseDto[]> {
+    const cursos = await this.cursosService.findAll()
+    return cursos.map((curso) => new CursoResponseDto(curso))
   }
 
   /**
@@ -90,12 +85,6 @@ export class CursosController {
     type: String,
     format: "uuid",
   })
-  @ApiQuery({
-    name: "incluirCoordenador",
-    required: false,
-    type: Boolean,
-    description: "Se true, inclui os dados do coordenador na resposta",
-  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Curso encontrado",
@@ -105,12 +94,11 @@ export class CursosController {
     status: HttpStatus.NOT_FOUND,
     description: "Curso não encontrado",
   })
-  findOne(
+  async findOne(
     @Param("id", ParseUUIDPipe) id: string,
-    @Query("incluirCoordenador") incluirCoordenador?: string,
-  ) {
-    const includeCoordinator = incluirCoordenador !== "false" // default é true
-    return this.cursosService.findOne(id, includeCoordinator)
+  ): Promise<CursoResponseDto> {
+    const curso = await this.cursosService.findOne(id)
+    return new CursoResponseDto(curso)
   }
 
   /**
@@ -138,11 +126,12 @@ export class CursosController {
     status: HttpStatus.CONFLICT,
     description: "Já existe outro curso com este código",
   })
-  update(
+  async update(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() updateCursoDto: UpdateCursoDto,
-  ) {
-    return this.cursosService.update(id, updateCursoDto)
+  ): Promise<CursoResponseDto> {
+    const curso = await this.cursosService.update(id, updateCursoDto)
+    return new CursoResponseDto(curso)
   }
 
   /**
@@ -166,7 +155,10 @@ export class CursosController {
     status: HttpStatus.NOT_FOUND,
     description: "Curso não encontrado",
   })
-  remove(@Param("id", ParseUUIDPipe) id: string) {
-    return this.cursosService.remove(id)
+  async remove(
+    @Param("id", ParseUUIDPipe) id: string,
+  ): Promise<CursoResponseDto> {
+    const curso = await this.cursosService.remove(id)
+    return new CursoResponseDto(curso)
   }
 }

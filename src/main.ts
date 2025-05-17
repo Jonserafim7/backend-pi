@@ -39,7 +39,14 @@ async function bootstrap() {
     .setVersion("1.0")
     .addBearerAuth()
     .build()
+
   const document = SwaggerModule.createDocument(app, config)
+  SwaggerModule.setup("api-docs", app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  })
+
   // Setup Swagger UI at /api-docs
   SwaggerModule.setup("api-docs", app, document)
   // Expose the raw Swagger JSON at /api-docs-json for Orval to consume

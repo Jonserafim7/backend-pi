@@ -46,7 +46,7 @@ async function main() {
       nome: "Admin Sistema",
       email: "admin@escola.edu",
       hashSenha: hashSenhaAdmin,
-      papel: PapelUsuario.ADMIN as PapelUsuario,
+      papel: PapelUsuario.ADMIN,
     },
   })
 
@@ -60,7 +60,7 @@ async function main() {
       nome: "Ana Diretora",
       email: "diretor@escola.edu",
       hashSenha: hashSenhaDiretor,
-      papel: PapelUsuario.DIRETOR as PapelUsuario,
+      papel: PapelUsuario.DIRETOR,
     },
   })
 
@@ -69,7 +69,7 @@ async function main() {
       nome: "Carlos Coordenador",
       email: "coordenador@escola.edu",
       hashSenha: hashSenhaCoordenador,
-      papel: PapelUsuario.COORDENADOR as PapelUsuario,
+      papel: PapelUsuario.COORDENADOR,
     },
   })
 
@@ -78,7 +78,7 @@ async function main() {
       nome: "Pedro Professor",
       email: "professor1@escola.edu",
       hashSenha: hashSenhaProfessor1,
-      papel: PapelUsuario.PROFESSOR as PapelUsuario,
+      papel: PapelUsuario.PROFESSOR,
     },
   })
 
@@ -87,7 +87,7 @@ async function main() {
       nome: "Maria Professora",
       email: "professor2@escola.edu",
       hashSenha: hashSenhaProfessor2,
-      papel: PapelUsuario.PROFESSOR as PapelUsuario,
+      papel: PapelUsuario.PROFESSOR,
     },
   })
 

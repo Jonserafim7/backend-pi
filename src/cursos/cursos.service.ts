@@ -37,7 +37,7 @@ export class CursosService {
       data: {
         nome: createCursoDto.nome,
         codigo: createCursoDto.codigo,
-        idCoordenador: createCursoDto.idCoordenador, // Agora é sempre string
+        idCoordenador: createCursoDto.idCoordenador,
       },
       include: {
         coordenadorPrincipal: {
@@ -128,7 +128,7 @@ export class CursosService {
 
     // Valida o coordenador, se informado
     if (updateCursoDto.idCoordenador) {
-      await this.validateCoordinator(updateCursoDto.idCoordenador)
+      await this.validateCoordinator(updateCursoDto.idCoordenador, id)
     }
 
     // Atualiza o curso
@@ -176,10 +176,15 @@ export class CursosService {
   }
 
   /**
-   * Valida se o usuário informado é um coordenador válido
+   * Valida se o usuário informado é um coordenador válido e não está atribuído a outro curso
    * @param idCoordenador ID do coordenador
+   * @param cursoId ID do curso atual (opcional, usado apenas em atualizações)
    */
-  private async validateCoordinator(idCoordenador: string): Promise<void> {
+  private async validateCoordinator(
+    idCoordenador: string,
+    cursoId?: string,
+  ): Promise<void> {
+    // Verifica se o usuário existe e é um coordenador
     const coordenador = await this.prisma.usuario.findUnique({
       where: { id: idCoordenador },
     })
@@ -190,6 +195,20 @@ export class CursosService {
 
     if (coordenador.papel !== PapelUsuario.COORDENADOR) {
       throw new BadRequestException("O usuário informado não é um coordenador")
+    }
+
+    // Verifica se o coordenador já está atribuído a outro curso
+    const cursoExistente = await this.prisma.curso.findFirst({
+      where: {
+        idCoordenador,
+        id: { not: cursoId }, // Ignora o curso atual em caso de atualização
+      },
+    })
+
+    if (cursoExistente) {
+      throw new ConflictException(
+        `Este coordenador já está atribuído ao curso ${cursoExistente.nome} (${cursoExistente.codigo})`,
+      )
     }
   }
 }

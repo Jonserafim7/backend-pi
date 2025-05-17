@@ -44,14 +44,6 @@ export class CursosController {
     description: "Curso criado com sucesso",
     type: CursoResponseDto,
   })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: "Dados inválidos fornecidos",
-  })
-  @ApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: "Já existe um curso com este código",
-  })
   async create(
     @Body() createCursoDto: CreateCursoDto,
   ): Promise<CursoResponseDto> {
@@ -90,10 +82,6 @@ export class CursosController {
     description: "Curso encontrado",
     type: CursoResponseDto,
   })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: "Curso não encontrado",
-  })
   async findOne(
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<CursoResponseDto> {
@@ -117,14 +105,6 @@ export class CursosController {
     status: HttpStatus.OK,
     description: "Curso atualizado com sucesso",
     type: CursoResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: "Curso não encontrado",
-  })
-  @ApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: "Já existe outro curso com este código",
   })
   async update(
     @Param("id", ParseUUIDPipe) id: string,
@@ -150,10 +130,6 @@ export class CursosController {
     status: HttpStatus.OK,
     description: "Curso removido com sucesso",
     type: CursoResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: "Curso não encontrado",
   })
   async remove(
     @Param("id", ParseUUIDPipe) id: string,

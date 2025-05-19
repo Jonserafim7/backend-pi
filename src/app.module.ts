@@ -9,6 +9,7 @@ import { AppController } from "./app.controller"
 import { AppService } from "./app.service"
 import { CursosModule } from "./cursos/cursos.module"
 import { ConfiguracoesHorarioModule } from "./configuracoes-horario/configuracoes-horario.module"
+import { MatrizesCurricularesModule } from "./matrizes-curriculares/matrizes-curriculares.module"
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ConfiguracoesHorarioModule } from "./configuracoes-horario/configuracoe
     UsuariosModule,
     CursosModule,
     ConfiguracoesHorarioModule,
+    MatrizesCurricularesModule,
   ],
   controllers: [AppController],
   providers: [

@@ -78,13 +78,10 @@ model Curso {
 model ConfiguracaoHorario {
   id                        String   @id @default(uuid())
   duracaoAulaMinutos        Int      @map("duracao_aula_minutos")
-  qtdAulasPorBloco          Int      @map("qtd_aulas_por_bloco")
   inicioTurnoManha          String   @map("inicio_turno_manha")
-  fimTurnoManha             String   @map("fim_turno_manha")
   inicioTurnoTarde          String   @map("inicio_turno_tarde")
-  fimTurnoTarde             String   @map("fim_turno_tarde")
   inicioTurnoNoite          String   @map("inicio_turno_noite")
-  fimTurnoNoite             String   @map("fim_turno_noite")
+  numeroAulasPorTurno       Int      @map("numero_aulas_por_turno")
   dataCriacao               DateTime @default(now()) @map("data_criacao")
   dataAtualizacao           DateTime @updatedAt @map("data_atualizacao")
 

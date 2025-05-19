@@ -98,13 +98,10 @@ async function main() {
   await prisma.configuracaoHorario.create({
     data: {
       duracaoAulaMinutos: 50,
-      qtdAulasPorBloco: 2,
+      numeroAulasPorTurno: 4,
       inicioTurnoManha: "07:30",
-      fimTurnoManha: "12:00",
       inicioTurnoTarde: "13:30",
-      fimTurnoTarde: "18:00",
       inicioTurnoNoite: "19:00",
-      fimTurnoNoite: "22:30",
     },
   })
 

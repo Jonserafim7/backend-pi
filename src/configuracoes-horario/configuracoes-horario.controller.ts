@@ -113,11 +113,24 @@ export class ConfiguracoesHorarioController {
     )
 
     try {
-      const result = await this.configuracoesHorarioService.upsert(dto)
+      await this.configuracoesHorarioService.upsert(dto)
       this.logger.log(
-        `Configuração de horário salva com sucesso para ${usuarioLogado.email}: ${JSON.stringify(result)}`,
+        `Configuração de horário persistida com sucesso via upsert por ${usuarioLogado.email}. Buscando DTO completo...`,
       )
-      return result
+
+      const configCompleta = await this.configuracoesHorarioService.get()
+      if (!configCompleta) {
+        this.logger.error(
+          `Falha ao buscar configuração completa após upsert bem-sucedido por ${usuarioLogado.email}.`,
+        )
+        throw new NotFoundException(
+          "Configuração de horário salva, mas falha ao retornar a representação completa.",
+        )
+      }
+      this.logger.log(
+        `Configuração de horário completa (com cálculos) retornada com sucesso para ${usuarioLogado.email} após PUT: ${JSON.stringify(configCompleta)}`,
+      )
+      return configCompleta
     } catch (error) {
       this.logger.error(
         `Erro ao processar PUT /configuracoes-horario para ${usuarioLogado.email} com DTO: ${JSON.stringify(dto)}. Erro: ${error instanceof Error ? error.message : String(error)}`,

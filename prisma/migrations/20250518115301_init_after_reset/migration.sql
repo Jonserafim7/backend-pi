@@ -24,13 +24,10 @@ CREATE TABLE "cursos" (
 CREATE TABLE "configuracoes_horario" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "duracao_aula_minutos" INTEGER NOT NULL,
-    "qtd_aulas_por_bloco" INTEGER NOT NULL,
     "inicio_turno_manha" TEXT NOT NULL,
-    "fim_turno_manha" TEXT NOT NULL,
     "inicio_turno_tarde" TEXT NOT NULL,
-    "fim_turno_tarde" TEXT NOT NULL,
     "inicio_turno_noite" TEXT NOT NULL,
-    "fim_turno_noite" TEXT NOT NULL,
+    "numero_aulas_por_turno" INTEGER NOT NULL,
     "data_criacao" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "data_atualizacao" DATETIME NOT NULL
 );

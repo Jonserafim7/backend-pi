@@ -8,6 +8,7 @@ import { UsuariosModule } from "./usuarios/usuarios.module"
 import { AppController } from "./app.controller"
 import { AppService } from "./app.service"
 import { CursosModule } from "./cursos/cursos.module"
+import { ConfiguracoesHorarioModule } from "./configuracoes-horario/configuracoes-horario.module"
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CursosModule } from "./cursos/cursos.module"
     PrismaModule,
     UsuariosModule,
     CursosModule,
+    ConfiguracoesHorarioModule,
   ],
   controllers: [AppController],
   providers: [

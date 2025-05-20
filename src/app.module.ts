@@ -10,6 +10,7 @@ import { AppService } from "./app.service"
 import { CursosModule } from "./cursos/cursos.module"
 import { ConfiguracoesHorarioModule } from "./configuracoes-horario/configuracoes-horario.module"
 import { MatrizesCurricularesModule } from "./matrizes-curriculares/matrizes-curriculares.module"
+import { DisciplinasModule } from "./disciplinas/disciplinas.module"
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { MatrizesCurricularesModule } from "./matrizes-curriculares/matrizes-cur
     CursosModule,
     ConfiguracoesHorarioModule,
     MatrizesCurricularesModule,
+    DisciplinasModule,
   ],
   controllers: [AppController],
   providers: [

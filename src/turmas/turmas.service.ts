@@ -224,8 +224,31 @@ export class TurmasService {
             idDisciplina: turma.disciplinaOfertada.idDisciplina,
             idPeriodoLetivo: turma.disciplinaOfertada.idPeriodoLetivo,
             quantidadeTurmas: turma.disciplinaOfertada.quantidadeTurmas,
-            disciplina: turma.disciplinaOfertada.disciplina,
-            periodoLetivo: turma.disciplinaOfertada.periodoLetivo,
+            disciplina:
+              turma.disciplinaOfertada.disciplina ?
+                {
+                  id: turma.disciplinaOfertada.disciplina.id,
+                  nome: turma.disciplinaOfertada.disciplina.nome,
+                  codigo: turma.disciplinaOfertada.disciplina.codigo ?? undefined,
+                  cargaHoraria: turma.disciplinaOfertada.disciplina.cargaHoraria,
+                  dataCriacao: turma.disciplinaOfertada.disciplina.dataCriacao,
+                  dataAtualizacao:
+                    turma.disciplinaOfertada.disciplina.dataAtualizacao,
+                }
+              : undefined,
+            periodoLetivo:
+              turma.disciplinaOfertada.periodoLetivo ?
+                {
+                  id: turma.disciplinaOfertada.periodoLetivo.id,
+                  ano: turma.disciplinaOfertada.periodoLetivo.ano,
+                  semestre: turma.disciplinaOfertada.periodoLetivo.semestre,
+                  dataInicio: turma.disciplinaOfertada.periodoLetivo.dataInicio,
+                  dataFim: turma.disciplinaOfertada.periodoLetivo.dataFim,
+                  createdAt: turma.disciplinaOfertada.periodoLetivo.dataCriacao,
+                  updatedAt:
+                    turma.disciplinaOfertada.periodoLetivo.dataAtualizacao,
+                }
+              : undefined,
             createdAt: turma.disciplinaOfertada.dataCriacao,
             updatedAt: turma.disciplinaOfertada.dataAtualizacao,
           }

@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { CreateDisciplinaOfertadaDto } from "./create-disciplina-ofertada.dto"
-import type { Disciplina, PeriodoLetivo } from "@prisma/client"
+import { DisciplinaResponseDto } from "../../disciplinas/dto/disciplina-response.dto"
+import { PeriodoLetivoDto } from "../../periodos-letivos/dto/periodo-letivo.dto"
 
 export class DisciplinaOfertadaResponseDto extends CreateDisciplinaOfertadaDto {
   @ApiProperty({
@@ -9,19 +10,17 @@ export class DisciplinaOfertadaResponseDto extends CreateDisciplinaOfertadaDto {
   })
   id!: string
 
-  // Adicionando campos de exemplo para disciplina e periodoLetivo,
-  // idealmente seriam DTOs próprios ou tipos mais complexos.
   @ApiProperty({
     description: "Detalhes da disciplina ofertada",
-    // example: { id: "a1b2c3d4-e5f6-7890-1234-567890abcdef", nome: "Cálculo I", codigo: "MAT001", cargaHoraria: 60, dataCriacao: new Date(), dataAtualizacao: new Date() }
+    type: () => DisciplinaResponseDto,
   })
-  disciplina?: Disciplina
+  disciplina?: DisciplinaResponseDto
 
   @ApiProperty({
     description: "Detalhes do período letivo da oferta",
-    // example: { id: "b1c2d3e4-f5a6-7890-1234-567890abcdef", ano: 2024, semestre: 1, dataCriacao: new Date(), dataAtualizacao: new Date() }
+    type: () => PeriodoLetivoDto,
   })
-  periodoLetivo?: PeriodoLetivo
+  periodoLetivo?: PeriodoLetivoDto
 
   @ApiProperty({
     description: "Data de criação da oferta da disciplina",

@@ -169,15 +169,37 @@ export class DisciplinasOfertadasService {
     // Por agora, retornaremos o objeto criado diretamente, assumindo que o Prisma o retorna de forma compatível.
     // Se precisarmos de mais controle ou dos objetos aninhados, faremos um select ou include e mapeamento manual.
 
+    // Correção: Mapear explicitamente para DisciplinaOfertadaResponseDto
     return {
       id: novaDisciplinaOfertada.id,
       idDisciplina: novaDisciplinaOfertada.idDisciplina,
       idPeriodoLetivo: novaDisciplinaOfertada.idPeriodoLetivo,
       quantidadeTurmas: novaDisciplinaOfertada.quantidadeTurmas,
-      disciplina: novaDisciplinaOfertada.disciplina,
-      periodoLetivo: novaDisciplinaOfertada.periodoLetivo,
-      createdAt: novaDisciplinaOfertada.dataCriacao, // Mapped field name
-      updatedAt: novaDisciplinaOfertada.dataAtualizacao, // Mapped field name
+      disciplina:
+        novaDisciplinaOfertada.disciplina ?
+          {
+            id: novaDisciplinaOfertada.disciplina.id,
+            nome: novaDisciplinaOfertada.disciplina.nome,
+            codigo: novaDisciplinaOfertada.disciplina.codigo ?? undefined, // Garante undefined se null
+            cargaHoraria: novaDisciplinaOfertada.disciplina.cargaHoraria,
+            dataCriacao: novaDisciplinaOfertada.disciplina.dataCriacao,
+            dataAtualizacao: novaDisciplinaOfertada.disciplina.dataAtualizacao,
+          }
+        : undefined,
+      periodoLetivo:
+        novaDisciplinaOfertada.periodoLetivo ?
+          {
+            id: novaDisciplinaOfertada.periodoLetivo.id,
+            ano: novaDisciplinaOfertada.periodoLetivo.ano,
+            semestre: novaDisciplinaOfertada.periodoLetivo.semestre,
+            dataInicio: novaDisciplinaOfertada.periodoLetivo.dataInicio,
+            dataFim: novaDisciplinaOfertada.periodoLetivo.dataFim,
+            createdAt: novaDisciplinaOfertada.periodoLetivo.dataCriacao, // Mapeamento de nome
+            updatedAt: novaDisciplinaOfertada.periodoLetivo.dataAtualizacao, // Mapeamento de nome
+          }
+        : undefined,
+      createdAt: novaDisciplinaOfertada.dataCriacao,
+      updatedAt: novaDisciplinaOfertada.dataAtualizacao,
     }
   }
 
@@ -242,8 +264,29 @@ export class DisciplinasOfertadasService {
       idDisciplina: oferta.idDisciplina,
       idPeriodoLetivo: oferta.idPeriodoLetivo,
       quantidadeTurmas: oferta.quantidadeTurmas,
-      disciplina: oferta.disciplina,
-      periodoLetivo: oferta.periodoLetivo,
+      disciplina:
+        oferta.disciplina ?
+          {
+            id: oferta.disciplina.id,
+            nome: oferta.disciplina.nome,
+            codigo: oferta.disciplina.codigo ?? undefined,
+            cargaHoraria: oferta.disciplina.cargaHoraria,
+            dataCriacao: oferta.disciplina.dataCriacao,
+            dataAtualizacao: oferta.disciplina.dataAtualizacao,
+          }
+        : undefined,
+      periodoLetivo:
+        oferta.periodoLetivo ?
+          {
+            id: oferta.periodoLetivo.id,
+            ano: oferta.periodoLetivo.ano,
+            semestre: oferta.periodoLetivo.semestre,
+            dataInicio: oferta.periodoLetivo.dataInicio,
+            dataFim: oferta.periodoLetivo.dataFim,
+            createdAt: oferta.periodoLetivo.dataCriacao,
+            updatedAt: oferta.periodoLetivo.dataAtualizacao,
+          }
+        : undefined,
       createdAt: oferta.dataCriacao,
       updatedAt: oferta.dataAtualizacao,
     }))
@@ -272,8 +315,29 @@ export class DisciplinasOfertadasService {
       idDisciplina: oferta.idDisciplina,
       idPeriodoLetivo: oferta.idPeriodoLetivo,
       quantidadeTurmas: oferta.quantidadeTurmas,
-      disciplina: oferta.disciplina,
-      periodoLetivo: oferta.periodoLetivo,
+      disciplina:
+        oferta.disciplina ?
+          {
+            id: oferta.disciplina.id,
+            nome: oferta.disciplina.nome,
+            codigo: oferta.disciplina.codigo ?? undefined,
+            cargaHoraria: oferta.disciplina.cargaHoraria,
+            dataCriacao: oferta.disciplina.dataCriacao,
+            dataAtualizacao: oferta.disciplina.dataAtualizacao,
+          }
+        : undefined,
+      periodoLetivo:
+        oferta.periodoLetivo ?
+          {
+            id: oferta.periodoLetivo.id,
+            ano: oferta.periodoLetivo.ano,
+            semestre: oferta.periodoLetivo.semestre,
+            dataInicio: oferta.periodoLetivo.dataInicio,
+            dataFim: oferta.periodoLetivo.dataFim,
+            createdAt: oferta.periodoLetivo.dataCriacao,
+            updatedAt: oferta.periodoLetivo.dataAtualizacao,
+          }
+        : undefined,
       createdAt: oferta.dataCriacao,
       updatedAt: oferta.dataAtualizacao,
     }
@@ -397,8 +461,29 @@ export class DisciplinasOfertadasService {
       idDisciplina: updatedOferta.idDisciplina,
       idPeriodoLetivo: updatedOferta.idPeriodoLetivo,
       quantidadeTurmas: updatedOferta.quantidadeTurmas,
-      disciplina: updatedOferta.disciplina,
-      periodoLetivo: updatedOferta.periodoLetivo,
+      disciplina:
+        updatedOferta.disciplina ?
+          {
+            id: updatedOferta.disciplina.id,
+            nome: updatedOferta.disciplina.nome,
+            codigo: updatedOferta.disciplina.codigo ?? undefined,
+            cargaHoraria: updatedOferta.disciplina.cargaHoraria,
+            dataCriacao: updatedOferta.disciplina.dataCriacao,
+            dataAtualizacao: updatedOferta.disciplina.dataAtualizacao,
+          }
+        : undefined,
+      periodoLetivo:
+        updatedOferta.periodoLetivo ?
+          {
+            id: updatedOferta.periodoLetivo.id,
+            ano: updatedOferta.periodoLetivo.ano,
+            semestre: updatedOferta.periodoLetivo.semestre,
+            dataInicio: updatedOferta.periodoLetivo.dataInicio,
+            dataFim: updatedOferta.periodoLetivo.dataFim,
+            createdAt: updatedOferta.periodoLetivo.dataCriacao,
+            updatedAt: updatedOferta.periodoLetivo.dataAtualizacao,
+          }
+        : undefined,
       createdAt: updatedOferta.dataCriacao,
       updatedAt: updatedOferta.dataAtualizacao,
     }

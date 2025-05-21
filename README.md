@@ -1,98 +1,149 @@
+# Sistema de Agendamento Acadêmico - Backend
+
 <p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+  <img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" />
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Descrição
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Este repositório contém o backend do Sistema de Agendamento Acadêmico, uma aplicação web desenvolvida para ajudar instituições educacionais a gerenciar cronogramas de aulas e atribuições de cursos de forma eficiente. 
 
-## Description
+O sistema automatiza o processo de criação de horários acadêmicos, garantindo a alocação ideal de professores e prevenindo conflitos de agendamento.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tecnologias Utilizadas
 
-## Project setup
+- **Framework**: NestJS (Node.js)
+- **Banco de Dados**: Prisma ORM com SQLite (desenvolvimento)
+- **Autenticação**: JWT com Passport.js
+- **Documentação da API**: Swagger/OpenAPI
+- **Testes**: Jest para testes unitários e e2e
 
-```bash
-$ pnpm install
-```
+## Pré-requisitos
 
-## Compile and run the project
+Antes de começar, certifique-se de ter instalado em sua máquina:
+
+- [Node.js](https://nodejs.org/) (v16 ou superior)
+- [PNPM](https://pnpm.io/) (v7 ou superior)
+- [Git](https://git-scm.com/)
+
+## Como Clonar o Projeto
 
 ```bash
-# development
-$ pnpm run start
+# Clone o repositório
+git clone [URL_DO_REPOSITORIO]
 
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+# Entre no diretório do projeto
+cd backend-pi
 ```
 
-## Run tests
+## Configuração do Ambiente
+
+1. Crie um arquivo `.env` na raiz do projeto:
 
 ```bash
-# unit tests
-$ pnpm run test
+# Configurações do banco de dados
+DATABASE_URL="file:./dev.db"
 
-# e2e tests
-$ pnpm run test:e2e
+# Configurações de autenticação
+JWT_SECRET="sua_chave_secreta_para_jwt"
+JWT_EXPIRATION="1d"
 
-# test coverage
-$ pnpm run test:cov
+# Outras configurações
+PORT=3000
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Instalação de Dependências
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+# Instale as dependências
+pnpm install
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Inicialização do Banco de Dados
 
-## Resources
+```bash
+# Gere o cliente Prisma
+pnpm prisma generate
 
-Check out a few resources that may come in handy when working with NestJS:
+# Execute as migrações do banco de dados
+pnpm prisma migrate dev
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# (Opcional) Para visualizar o banco de dados
+pnpm prisma studio
+```
 
-## Support
+## Compilação e Execução do Projeto
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+# Modo de desenvolvimento
+pnpm run start:dev
 
-## Stay in touch
+# Compilação
+pnpm run build
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# Modo de produção
+pnpm run start:prod
+```
 
-## License
+## Rodando Testes
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+# Testes unitários
+pnpm run test
+
+# Testes e2e
+pnpm run test:e2e
+
+# Cobertura de testes
+pnpm run test:cov
+```
+
+## Acessando a Documentação da API
+
+Após iniciar o servidor, acesse a documentação Swagger da API em:
+
+```
+http://localhost:3000/api
+```
+
+## Estrutura do Projeto
+
+```
+backend-pi/
+├── prisma/                # Definições do Prisma ORM
+├── src/
+│   ├── auth/              # Autenticação e autorização
+│   ├── common/            # Código compartilhado
+│   ├── config/            # Configurações da aplicação
+│   ├── modules/           # Módulos da aplicação
+│   │   ├── users/         # Gerenciamento de usuários
+│   │   ├── courses/       # Gerenciamento de cursos
+│   │   ├── schedules/     # Gerenciamento de horários
+│   │   └── ...            # Outros módulos
+│   ├── app.module.ts      # Módulo principal
+│   └── main.ts            # Ponto de entrada da aplicação
+├── test/                  # Testes
+└── README.md              # Este arquivo
+```
+
+## Papéis e Permissões do Sistema
+
+O sistema possui três papéis principais:
+
+1. **Diretor**
+   - Gerencia cursos e coordenadores
+   - Aprova horários finais
+   - Define configurações globais de agendamento
+
+2. **Coordenador**
+   - Gerencia currículos e disciplinas
+   - Cria e submete propostas de horários
+   - Gerencia atribuições de professores para seus cursos
+
+3. **Professor**
+   - Atualiza disponibilidade para lecionar
+   - Visualiza seu cronograma pessoal de aulas
+
+## Suporte
+
+Para suporte ou dúvidas sobre o projeto, entre em contato com a equipe de desenvolvimento.

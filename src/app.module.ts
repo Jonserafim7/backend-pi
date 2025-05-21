@@ -12,6 +12,7 @@ import { ConfiguracoesHorarioModule } from "./configuracoes-horario/configuracoe
 import { MatrizesCurricularesModule } from "./matrizes-curriculares/matrizes-curriculares.module"
 import { DisciplinasModule } from "./disciplinas/disciplinas.module"
 import { DisciplinasOfertadasModule } from "./disciplinas-ofertadas/disciplinas-ofertadas.module"
+import { PeriodosLetivosModule } from "./periodos-letivos/periodos-letivos.module"
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { DisciplinasOfertadasModule } from "./disciplinas-ofertadas/disciplinas-
     MatrizesCurricularesModule,
     DisciplinasModule,
     DisciplinasOfertadasModule,
+    PeriodosLetivosModule,
   ],
   controllers: [AppController],
   providers: [

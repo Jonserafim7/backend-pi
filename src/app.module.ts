@@ -11,6 +11,7 @@ import { CursosModule } from "./cursos/cursos.module"
 import { ConfiguracoesHorarioModule } from "./configuracoes-horario/configuracoes-horario.module"
 import { MatrizesCurricularesModule } from "./matrizes-curriculares/matrizes-curriculares.module"
 import { DisciplinasModule } from "./disciplinas/disciplinas.module"
+import { DisciplinasOfertadasModule } from "./disciplinas-ofertadas/disciplinas-ofertadas.module"
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { DisciplinasModule } from "./disciplinas/disciplinas.module"
     ConfiguracoesHorarioModule,
     MatrizesCurricularesModule,
     DisciplinasModule,
+    DisciplinasOfertadasModule,
   ],
   controllers: [AppController],
   providers: [

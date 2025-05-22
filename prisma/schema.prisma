@@ -42,6 +42,11 @@ enum PropostaHorarioStatus {
   REJEITADA
 }
 
+enum StatusPeriodoLetivo {
+  ATIVO
+  INATIVO
+}
+
 model Usuario {
   id                String    @id @default(uuid())
   nome              String
@@ -88,12 +93,15 @@ model ConfiguracaoHorario {
   @@map("configuracoes_horario")
 }
 
+
+
 model PeriodoLetivo {
   id                                String    @id @default(uuid())
   ano                               Int
   semestre                          Int
-  dataInicio                        DateTime? @map("data_inicio")
-  dataFim                           DateTime? @map("data_fim")
+  dataInicio                        DateTime @map("data_inicio")
+  dataFim                           DateTime @map("data_fim")
+  status                            StatusPeriodoLetivo @default(INATIVO)
   dataCriacao                       DateTime  @default(now()) @map("data_criacao")
   dataAtualizacao                   DateTime  @updatedAt @map("data_atualizacao")
 

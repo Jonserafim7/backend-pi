@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from "@nestjs/common"
 import { PrismaService } from "../core/prisma/prisma.service" // Assuming PrismaService path
 import { Prisma } from "@prisma/client" // Import Prisma namespace
@@ -10,7 +11,7 @@ import { CreateDisciplinaOfertadaDto } from "./dto/create-disciplina-ofertada.dt
 import { UpdateDisciplinaOfertadaDto } from "./dto/update-disciplina-ofertada.dto"
 import { DisciplinaOfertadaResponseDto } from "./dto/disciplina-ofertada-response.dto"
 import { TurmasService } from "../turmas/turmas.service" // To be used for auto-creating turmas
-import { Logger } from "@nestjs/common"
+import { PeriodoLetivoResponseDto } from "../periodos-letivos/dto"
 
 interface FindAllDisciplinasOfertadasServiceFilters {
   periodoId?: string
@@ -55,18 +56,11 @@ export class DisciplinasOfertadasService {
     }
 
     // Validar que o período letivo está ativo
-    const hoje = new Date()
-    if (periodoLetivo.dataInicio && periodoLetivo.dataInicio > hoje) {
+    if (periodoLetivo.status !== "ATIVO") {
       throw new BadRequestException(
-        `O Período Letivo "${periodoLetivo.ano}/${periodoLetivo.semestre}" ainda não começou. Início em: ${periodoLetivo.dataInicio.toLocaleDateString()}.`,
+        `O Período Letivo "${periodoLetivo.ano}/${periodoLetivo.semestre}" não está ativo.`,
       )
     }
-    if (periodoLetivo.dataFim && periodoLetivo.dataFim < hoje) {
-      throw new BadRequestException(
-        `O Período Letivo "${periodoLetivo.ano}/${periodoLetivo.semestre}" já terminou em: ${periodoLetivo.dataFim.toLocaleDateString()}.`,
-      )
-    }
-    // TODO: Validar que o período letivo está ativo (e.g., periodoLetivo.dataFim && new Date() > periodoLetivo.dataFim)
 
     // 3. Authorization: Validar que a disciplina pertence a uma matriz de um curso que o coordenador logado coordena
     const cursosCoordenados = await this.prisma.curso.findMany({
@@ -111,7 +105,7 @@ export class DisciplinasOfertadasService {
       )
     }
 
-    // 4. Validar que a disciplina não foi ofertada no mesmo período letivo (check moved after auth)
+    // 4. Validar que a disciplina não foi ofertada no mesmo período letivo
     const existingOferta = await this.prisma.disciplinaOfertada.findFirst({
       where: {
         idDisciplina: idDisciplina,
@@ -145,31 +139,19 @@ export class DisciplinasOfertadasService {
       novaDisciplinaOfertada.id
     ) {
       try {
-        // O número de vagas padrão pode vir do DTO, de uma configuração, ou ser fixo.
-        // Por agora, não passarei um número de vagas padrão específico.
         await this.turmasService.createTurmasForDisciplinaOfertada(
           novaDisciplinaOfertada.id,
           novaDisciplinaOfertada.quantidadeTurmas,
         )
       } catch (error) {
-        // Log o erro, mas não necessariamente reverta a criação da DisciplinaOfertada.
-        // Ou decida por uma política de transação mais estrita se necessário.
         const e = error as Error
         console.error(
           `Falha ao criar turmas para a oferta ${novaDisciplinaOfertada.id}: ${e.message}`,
         )
-        // Poderia-se lançar um erro customizado ou adicionar um alerta na resposta.
       }
     }
 
-    // Mapear para o DTO de resposta.
-    // Prisma retorna todos os campos, incluindo IDs de relacionamento.
-    // O DisciplinaOfertadaResponseDto espera idDisciplina, idPeriodoLetivo, quantidadeTurmas, id, createdAt, updatedAt
-    // e opcionalmente os objetos disciplina e periodoLetivo.
-    // Por agora, retornaremos o objeto criado diretamente, assumindo que o Prisma o retorna de forma compatível.
-    // Se precisarmos de mais controle ou dos objetos aninhados, faremos um select ou include e mapeamento manual.
-
-    // Correção: Mapear explicitamente para DisciplinaOfertadaResponseDto
+    // Mapear para o DTO de resposta
     return {
       id: novaDisciplinaOfertada.id,
       idDisciplina: novaDisciplinaOfertada.idDisciplina,
@@ -180,7 +162,7 @@ export class DisciplinasOfertadasService {
           {
             id: novaDisciplinaOfertada.disciplina.id,
             nome: novaDisciplinaOfertada.disciplina.nome,
-            codigo: novaDisciplinaOfertada.disciplina.codigo ?? undefined, // Garante undefined se null
+            codigo: novaDisciplinaOfertada.disciplina.codigo ?? undefined,
             cargaHoraria: novaDisciplinaOfertada.disciplina.cargaHoraria,
             dataCriacao: novaDisciplinaOfertada.disciplina.dataCriacao,
             dataAtualizacao: novaDisciplinaOfertada.disciplina.dataAtualizacao,
@@ -188,15 +170,9 @@ export class DisciplinasOfertadasService {
         : undefined,
       periodoLetivo:
         novaDisciplinaOfertada.periodoLetivo ?
-          {
-            id: novaDisciplinaOfertada.periodoLetivo.id,
-            ano: novaDisciplinaOfertada.periodoLetivo.ano,
-            semestre: novaDisciplinaOfertada.periodoLetivo.semestre,
-            dataInicio: novaDisciplinaOfertada.periodoLetivo.dataInicio,
-            dataFim: novaDisciplinaOfertada.periodoLetivo.dataFim,
-            createdAt: novaDisciplinaOfertada.periodoLetivo.dataCriacao, // Mapeamento de nome
-            updatedAt: novaDisciplinaOfertada.periodoLetivo.dataAtualizacao, // Mapeamento de nome
-          }
+          PeriodoLetivoResponseDto.fromEntity(
+            novaDisciplinaOfertada.periodoLetivo,
+          )
         : undefined,
       createdAt: novaDisciplinaOfertada.dataCriacao,
       updatedAt: novaDisciplinaOfertada.dataAtualizacao,
@@ -213,11 +189,6 @@ export class DisciplinasOfertadasService {
     }
 
     if (filters.cursoId) {
-      // To filter by cursoId, we need to find disciplinas that belong to matrizes of that curso
-      // and then find ofertas for those disciplinas.
-      // This is a bit more complex and might require a multi-step query or a raw query if performance is critical.
-      // For now, let's add a placeholder or a simpler approach if possible.
-      // One approach: Get all MatrizCurricular for the cursoId, then all MatrizDisciplina, then all Disciplina IDs.
       const matrizesDoCurso = await this.prisma.matrizCurricular.findMany({
         where: { idCurso: filters.cursoId },
         select: { id: true },
@@ -231,16 +202,14 @@ export class DisciplinasOfertadasService {
         })
         const idsDisciplinasDoCurso = disciplinasDaMatriz
           .map((md) => md.idDisciplina)
-          .filter((value, index, self) => self.indexOf(value) === index) // Unique IDs
+          .filter((value, index, self) => self.indexOf(value) === index)
 
         if (idsDisciplinasDoCurso.length > 0) {
           whereClause.idDisciplina = { in: idsDisciplinasDoCurso }
         } else {
-          // No disciplines found for the given cursoId, so no ofertas will match
           return []
         }
       } else {
-        // No matrizes found for the cursoId, so no ofertas will match
         return []
       }
     }
@@ -250,7 +219,6 @@ export class DisciplinasOfertadasService {
       include: {
         disciplina: true,
         periodoLetivo: true,
-        // Not including coordenadorQueOfertou by default to keep payload smaller unless needed
       },
       orderBy: [
         { periodoLetivo: { ano: "desc" } },
@@ -277,15 +245,7 @@ export class DisciplinasOfertadasService {
         : undefined,
       periodoLetivo:
         oferta.periodoLetivo ?
-          {
-            id: oferta.periodoLetivo.id,
-            ano: oferta.periodoLetivo.ano,
-            semestre: oferta.periodoLetivo.semestre,
-            dataInicio: oferta.periodoLetivo.dataInicio,
-            dataFim: oferta.periodoLetivo.dataFim,
-            createdAt: oferta.periodoLetivo.dataCriacao,
-            updatedAt: oferta.periodoLetivo.dataAtualizacao,
-          }
+          PeriodoLetivoResponseDto.fromEntity(oferta.periodoLetivo)
         : undefined,
       createdAt: oferta.dataCriacao,
       updatedAt: oferta.dataAtualizacao,
@@ -294,7 +254,6 @@ export class DisciplinasOfertadasService {
 
   async findOne(id: string): Promise<DisciplinaOfertadaResponseDto> {
     console.log("Find ID (service):", id)
-    // TODO: Implementar busca detalhada com disciplina e período letivo relacionados
     const oferta = await this.prisma.disciplinaOfertada.findUnique({
       where: { id },
       include: {
@@ -328,15 +287,7 @@ export class DisciplinasOfertadasService {
         : undefined,
       periodoLetivo:
         oferta.periodoLetivo ?
-          {
-            id: oferta.periodoLetivo.id,
-            ano: oferta.periodoLetivo.ano,
-            semestre: oferta.periodoLetivo.semestre,
-            dataInicio: oferta.periodoLetivo.dataInicio,
-            dataFim: oferta.periodoLetivo.dataFim,
-            createdAt: oferta.periodoLetivo.dataCriacao,
-            updatedAt: oferta.periodoLetivo.dataAtualizacao,
-          }
+          PeriodoLetivoResponseDto.fromEntity(oferta.periodoLetivo)
         : undefined,
       createdAt: oferta.dataCriacao,
       updatedAt: oferta.dataAtualizacao,
@@ -474,15 +425,7 @@ export class DisciplinasOfertadasService {
         : undefined,
       periodoLetivo:
         updatedOferta.periodoLetivo ?
-          {
-            id: updatedOferta.periodoLetivo.id,
-            ano: updatedOferta.periodoLetivo.ano,
-            semestre: updatedOferta.periodoLetivo.semestre,
-            dataInicio: updatedOferta.periodoLetivo.dataInicio,
-            dataFim: updatedOferta.periodoLetivo.dataFim,
-            createdAt: updatedOferta.periodoLetivo.dataCriacao,
-            updatedAt: updatedOferta.periodoLetivo.dataAtualizacao,
-          }
+          PeriodoLetivoResponseDto.fromEntity(updatedOferta.periodoLetivo)
         : undefined,
       createdAt: updatedOferta.dataCriacao,
       updatedAt: updatedOferta.dataAtualizacao,
@@ -511,7 +454,8 @@ export class DisciplinasOfertadasService {
       )
     }
 
-    // Consider soft delete or more complex logic if turmas depend on this
+    // TODO: Implementar lógica para remover turmas associadas    // Atualmente, o Prisma irá lidar com as constraint automaticamente
+
     await this.prisma.disciplinaOfertada.delete({
       where: { id },
     })

@@ -1,89 +1,102 @@
 import { ApiProperty } from "@nestjs/swagger"
-import { IsInt, IsBoolean, IsOptional, Min, Max } from "class-validator"
+import {
+  IsOptional,
+  IsEnum,
+  IsInt,
+  Min,
+  Max,
+  IsDateString,
+  IsUUID,
+} from "class-validator"
 import { Transform } from "class-transformer"
+import { StatusPeriodoLetivo } from "@prisma/client"
 
 /**
- * DTO para consulta de períodos letivos com filtros e paginação
+ * DTO para busca de períodos letivos com filtros opcionais
  * @class FindPeriodoLetivoDto
  */
 export class FindPeriodoLetivoDto {
   @ApiProperty({
-    description: "Filtra pelo ano do período letivo",
-    example: 2025,
-    minimum: 2000,
-    maximum: 2100,
+    description: "ID do período letivo",
+    example: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
     required: false,
   })
-  @IsInt({ message: "O ano deve ser um número inteiro" })
-  @Min(2000, { message: "O ano deve ser maior ou igual a 2000" })
-  @Max(2100, { message: "O ano deve ser menor ou igual a 2100" })
+  @IsOptional()
+  @IsUUID(4, { message: "ID deve ser um UUID válido." })
+  id?: string
+
+  @ApiProperty({
+    description: "Ano do período letivo",
+    example: 2025,
+    required: false,
+  })
+  @IsOptional()
+  @IsInt({ message: "O ano deve ser um número inteiro." })
+  @Min(2000, { message: "O ano deve ser maior ou igual a 2000." })
+  @Max(2100, { message: "O ano deve ser menor ou igual a 2100." })
   @Transform(({ value }: { value: string }) =>
     value ? parseInt(value, 10) : undefined,
   )
-  @IsOptional()
   ano?: number
 
   @ApiProperty({
-    description: "Filtra pelo semestre do período letivo (1 ou 2)",
+    description: "Semestre do período letivo (1 ou 2)",
     example: 1,
-    minimum: 1,
-    maximum: 2,
     required: false,
   })
-  @IsInt({ message: "O semestre deve ser um número inteiro" })
-  @Min(1, { message: "O semestre deve ser 1 ou 2" })
-  @Max(2, { message: "O semestre deve ser 1 ou 2" })
+  @IsOptional()
+  @IsInt({ message: "O semestre deve ser um número inteiro." })
+  @Min(1, { message: "O semestre deve ser no mínimo 1." })
+  @Max(2, { message: "O semestre deve ser no máximo 2." })
   @Transform(({ value }: { value: string }) =>
     value ? parseInt(value, 10) : undefined,
   )
-  @IsOptional()
   semestre?: number
 
   @ApiProperty({
-    description: "Filtra por períodos letivos ativos ou inativos",
-    example: true,
+    description: "Status do período letivo",
+    enum: StatusPeriodoLetivo,
     required: false,
   })
-  @IsBoolean({ message: "O campo ativo deve ser um booleano" })
-  @Transform(({ value }: { value: string | boolean | undefined }) => {
-    if (typeof value === "string") {
-      const lowerValue = value.toLowerCase()
-      if (lowerValue === "true") return true
-      if (lowerValue === "false") return false
-    }
-    if (typeof value === "boolean") {
-      return value
-    }
-    return undefined // Para outros casos, não aplicar filtro por 'ativo'
-  })
   @IsOptional()
-  ativo?: boolean
+  @IsEnum(StatusPeriodoLetivo, {
+    message: "O status deve ser ATIVO ou INATIVO.",
+  })
+  status?: StatusPeriodoLetivo
 
   @ApiProperty({
-    description: "Número da página para paginação",
-    example: 1,
-    minimum: 1,
-    default: 1,
+    description: "Data de início do período letivo (filtro a partir de)",
+    example: "2025-01-01",
     required: false,
   })
-  @IsInt({ message: "A página deve ser um número inteiro" })
-  @Min(1, { message: "A página deve ser maior ou igual a 1" })
-  @Transform(({ value }: { value: string }) => (value ? parseInt(value, 10) : 1))
   @IsOptional()
-  pagina?: number
+  @IsDateString({}, { message: "A data de início deve estar em formato válido." })
+  dataInicioGte?: string
 
   @ApiProperty({
-    description: "Número de itens por página",
-    example: 10,
-    minimum: 1,
-    maximum: 100,
-    default: 10,
+    description: "Data de início do período letivo (filtro até)",
+    example: "2025-12-31",
     required: false,
   })
-  @IsInt({ message: "O limite deve ser um número inteiro" })
-  @Min(1, { message: "O limite deve ser maior ou igual a 1" })
-  @Max(100, { message: "O limite deve ser menor ou igual a 100" })
-  @Transform(({ value }: { value: string }) => (value ? parseInt(value, 10) : 10))
   @IsOptional()
-  limite?: number
+  @IsDateString({}, { message: "A data de início deve estar em formato válido." })
+  dataInicioLte?: string
+
+  @ApiProperty({
+    description: "Data de fim do período letivo (filtro a partir de)",
+    example: "2025-01-01",
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString({}, { message: "A data de fim deve estar em formato válido." })
+  dataFimGte?: string
+
+  @ApiProperty({
+    description: "Data de fim do período letivo (filtro até)",
+    example: "2025-12-31",
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString({}, { message: "A data de fim deve estar em formato válido." })
+  dataFimLte?: string
 }

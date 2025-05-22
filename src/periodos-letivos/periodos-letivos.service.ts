@@ -3,13 +3,21 @@ import {
   NotFoundException,
   ConflictException,
   InternalServerErrorException,
+  BadRequestException,
 } from "@nestjs/common"
-import { CreatePeriodoLetivoDto } from "./dto/create-periodo-letivo.dto"
-import { UpdatePeriodoLetivoDto } from "./dto/update-periodo-letivo.dto"
-import { FindPeriodoLetivoDto } from "./dto/find-periodo-letivo.dto"
-import { PeriodoLetivoResponseDto } from "./dto/periodo-letivo-response.dto"
+import {
+  CreatePeriodoLetivoDto,
+  UpdatePeriodoLetivoDto,
+  PeriodoLetivoResponseDto,
+  FindPeriodoLetivoDto,
+  ChangeStatusPeriodoLetivoDto,
+} from "./dto"
 import { PrismaService } from "../core/prisma/prisma.service"
-import { Prisma, PeriodoLetivo as PeriodoLetivoEntity } from "@prisma/client"
+import {
+  Prisma,
+  PeriodoLetivo as PeriodoLetivoEntity,
+  StatusPeriodoLetivo,
+} from "@prisma/client"
 
 /**
  * @class PeriodosLetivosService
@@ -26,86 +34,116 @@ export class PeriodosLetivosService {
   /**
    * @method create
    * @description Cria um novo período letivo.
-   * @param {CreatePeriodoLetivoDto} createPeriodoLetivoDto - Dados para criar o período letivo.
+   * @param {CreatePeriodoLetivoDto} createPeriodoLetivoDto - Dados para criação do período letivo.
    * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo criado.
+   * @throws {ConflictException} Se já existir um período letivo com o mesmo ano e semestre.
+   * @throws {BadRequestException} Se a data de fim for anterior à data de início.
    */
   async create(
     createPeriodoLetivoDto: CreatePeriodoLetivoDto,
   ): Promise<PeriodoLetivoResponseDto> {
-    const { ano, semestre } = createPeriodoLetivoDto
+    const {
+      ano,
+      semestre,
+      status = StatusPeriodoLetivo.INATIVO,
+      dataInicio,
+      dataFim,
+    } = createPeriodoLetivoDto
 
-    // Verifica se já existe um período letivo com o mesmo ano e semestre
-    const existingPeriodo = await this.prisma.periodoLetivo.findFirst({
+    // Validar datas
+    const dataInicioDate = new Date(dataInicio)
+    const dataFimDate = new Date(dataFim)
+
+    if (dataFimDate <= dataInicioDate) {
+      throw new BadRequestException(
+        "A data de fim deve ser posterior à data de início.",
+      )
+    }
+
+    // Verificar se já existe um período com o mesmo ano e semestre
+    const periodoExistente = await this.prisma.periodoLetivo.findFirst({
       where: {
         ano,
         semestre,
       },
     })
 
-    if (existingPeriodo) {
+    if (periodoExistente) {
       throw new ConflictException(
         `Já existe um período letivo para o ano ${ano} e semestre ${semestre}.`,
       )
     }
 
-    const dataParaCriacao: Prisma.PeriodoLetivoCreateInput = {
-      ano: createPeriodoLetivoDto.ano,
-      semestre: createPeriodoLetivoDto.semestre,
-      ativo: createPeriodoLetivoDto.ativo ?? false,
-      dataInicio:
-        createPeriodoLetivoDto.dataInicio ?
-          new Date(createPeriodoLetivoDto.dataInicio)
-        : null,
-      dataFim:
-        createPeriodoLetivoDto.dataFim ?
-          new Date(createPeriodoLetivoDto.dataFim)
-        : null,
+    // Se o status for ATIVO, verificar se já existe outro período ativo
+    if (status === StatusPeriodoLetivo.ATIVO) {
+      await this.validateUnicoPeriodoAtivo()
     }
 
-    const periodoLetivo: PeriodoLetivoEntity =
-      await this.prisma.periodoLetivo.create({ data: dataParaCriacao })
-    return PeriodoLetivoResponseDto.fromEntity(periodoLetivo)
+    try {
+      const periodoLetivo = await this.prisma.periodoLetivo.create({
+        data: {
+          ano,
+          semestre,
+          status,
+          dataInicio: dataInicioDate,
+          dataFim: dataFimDate,
+        },
+      })
+      return PeriodoLetivoResponseDto.fromEntity(periodoLetivo)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2002") {
+          throw new ConflictException(
+            `Já existe um período letivo para o ano ${ano} e semestre ${semestre}.`,
+          )
+        }
+      }
+      throw new InternalServerErrorException(
+        `Erro ao criar período letivo: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   }
 
   /**
    * @method findAll
-   * @description Retorna uma lista de períodos letivos com base nos filtros e paginação.
-   * @param {FindPeriodoLetivoDto} params - Parâmetros de filtro e paginação.
-   * @returns {Promise<{ data: PeriodoLetivoResponseDto[]; count: number }>} Lista de períodos letivos e a contagem total.
+   * @description Retorna uma lista de períodos letivos com base nos filtros.
+   * @param {FindPeriodoLetivoDto} params - Parâmetros de filtro.
+   * @returns {Promise<PeriodoLetivoResponseDto[]>} Lista de períodos letivos.
    */
   async findAll(
     params: FindPeriodoLetivoDto,
-  ): Promise<{ data: PeriodoLetivoResponseDto[]; count: number }> {
-    const { ano, semestre, ativo, pagina = 1, limite = 10 } = params
-    const skip = (pagina - 1) * limite
+  ): Promise<PeriodoLetivoResponseDto[]> {
+    const whereClause: Prisma.PeriodoLetivoWhereInput = {}
 
-    const where: Prisma.PeriodoLetivoWhereInput = {}
-    if (ano !== undefined) {
-      where.ano = ano
-    }
-    if (semestre !== undefined) {
-      where.semestre = semestre
-    }
-    if (ativo !== undefined) {
-      where.ativo = ativo
+    // Aplicar filtros
+    if (params.id) whereClause.id = params.id
+    if (params.ano) whereClause.ano = params.ano
+    if (params.semestre) whereClause.semestre = params.semestre
+    if (params.status) whereClause.status = params.status
+
+    // Filtros de data
+    if (params.dataInicioGte || params.dataInicioLte) {
+      whereClause.dataInicio = {}
+      if (params.dataInicioGte)
+        whereClause.dataInicio.gte = new Date(params.dataInicioGte)
+      if (params.dataInicioLte)
+        whereClause.dataInicio.lte = new Date(params.dataInicioLte)
     }
 
-    const [periodosLetivos, total] = await this.prisma.$transaction([
-      this.prisma.periodoLetivo.findMany({
-        where,
-        skip,
-        take: Number(limite),
-        orderBy: [{ ano: "desc" }, { semestre: "desc" }],
-      }),
-      this.prisma.periodoLetivo.count({ where }),
-    ])
-
-    return {
-      data: periodosLetivos.map((pl: PeriodoLetivoEntity) =>
-        PeriodoLetivoResponseDto.fromEntity(pl),
-      ),
-      count: total,
+    if (params.dataFimGte || params.dataFimLte) {
+      whereClause.dataFim = {}
+      if (params.dataFimGte) whereClause.dataFim.gte = new Date(params.dataFimGte)
+      if (params.dataFimLte) whereClause.dataFim.lte = new Date(params.dataFimLte)
     }
+
+    const periodosLetivos = await this.prisma.periodoLetivo.findMany({
+      where: whereClause,
+      orderBy: [{ ano: "desc" }, { semestre: "desc" }],
+    })
+
+    return periodosLetivos.map((pl: PeriodoLetivoEntity) =>
+      PeriodoLetivoResponseDto.fromEntity(pl),
+    )
   }
 
   /**
@@ -116,12 +154,26 @@ export class PeriodosLetivosService {
    * @throws {NotFoundException} Se o período letivo não for encontrado.
    */
   async findOne(id: string): Promise<PeriodoLetivoResponseDto> {
-    const periodoLetivo: PeriodoLetivoEntity | null =
-      await this.prisma.periodoLetivo.findUnique({ where: { id } })
+    const periodoLetivo = await this.prisma.periodoLetivo.findUnique({
+      where: { id },
+    })
     if (!periodoLetivo) {
       throw new NotFoundException(`Período letivo com ID "${id}" não encontrado.`)
     }
     return PeriodoLetivoResponseDto.fromEntity(periodoLetivo)
+  }
+
+  /**
+   * @method findPeriodoAtivo
+   * @description Retorna o período letivo ativo atual.
+   * @returns {Promise<PeriodoLetivoResponseDto | null>} O período letivo ativo ou null se não houver.
+   */
+  async findPeriodoAtivo(): Promise<PeriodoLetivoResponseDto | null> {
+    const periodoAtivo = await this.prisma.periodoLetivo.findFirst({
+      where: { status: StatusPeriodoLetivo.ATIVO },
+    })
+
+    return periodoAtivo ? PeriodoLetivoResponseDto.fromEntity(periodoAtivo) : null
   }
 
   /**
@@ -131,14 +183,16 @@ export class PeriodosLetivosService {
    * @param {UpdatePeriodoLetivoDto} updatePeriodoLetivoDto - Dados para atualizar o período letivo.
    * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo atualizado.
    * @throws {NotFoundException} Se o período letivo não for encontrado.
+   * @throws {ConflictException} Se houver conflito de ano/semestre ou período ativo.
+   * @throws {BadRequestException} Se a data de fim for anterior à data de início.
    */
   async update(
     id: string,
     updatePeriodoLetivoDto: UpdatePeriodoLetivoDto,
   ): Promise<PeriodoLetivoResponseDto> {
-    const { ano, semestre, ativo, dataInicio, dataFim } = updatePeriodoLetivoDto
+    const { ano, semestre, status, dataInicio, dataFim } = updatePeriodoLetivoDto
 
-    // Primeiro, verifica se o período letivo que estamos tentando atualizar existe
+    // Verificar se o período letivo existe
     const periodoExistente = await this.prisma.periodoLetivo.findUnique({
       where: { id },
     })
@@ -149,23 +203,30 @@ export class PeriodosLetivosService {
       )
     }
 
-    // Se ano ou semestre estão sendo atualizados, verifica duplicidade
+    // Validar datas se fornecidas
+    const dataInicioDate =
+      dataInicio ? new Date(dataInicio) : periodoExistente.dataInicio
+    const dataFimDate = dataFim ? new Date(dataFim) : periodoExistente.dataFim
+
+    if (dataFimDate <= dataInicioDate) {
+      throw new BadRequestException(
+        "A data de fim deve ser posterior à data de início.",
+      )
+    }
+
+    // Verificar duplicidade de ano/semestre se estão sendo atualizados
     if (ano !== undefined || semestre !== undefined) {
       const anoParaVerificacao = ano !== undefined ? ano : periodoExistente.ano
       const semestreParaVerificacao =
         semestre !== undefined ? semestre : periodoExistente.semestre
 
-      const criterioBuscaDuplicidade: Prisma.PeriodoLetivoWhereInput = {
-        ano: anoParaVerificacao,
-        semestre: semestreParaVerificacao,
-        NOT: {
-          id: id, // Exclui o próprio registro da verificação de duplicidade
-        },
-      }
-
       const periodoComMesmoAnoSemestre =
         await this.prisma.periodoLetivo.findFirst({
-          where: criterioBuscaDuplicidade,
+          where: {
+            ano: anoParaVerificacao,
+            semestre: semestreParaVerificacao,
+            NOT: { id },
+          },
         })
 
       if (periodoComMesmoAnoSemestre) {
@@ -175,27 +236,26 @@ export class PeriodosLetivosService {
       }
     }
 
+    // Se o status está sendo alterado para ATIVO, verificar unicidade
+    if (
+      status === StatusPeriodoLetivo.ATIVO &&
+      periodoExistente.status !== StatusPeriodoLetivo.ATIVO
+    ) {
+      await this.validateUnicoPeriodoAtivo(id)
+    }
+
     const dataToUpdate: Prisma.PeriodoLetivoUpdateInput = {}
     if (ano !== undefined) dataToUpdate.ano = ano
     if (semestre !== undefined) dataToUpdate.semestre = semestre
-    if (ativo !== undefined) dataToUpdate.ativo = ativo
-
-    if (
-      Object.prototype.hasOwnProperty.call(updatePeriodoLetivoDto, "dataInicio")
-    ) {
-      dataToUpdate.dataInicio = dataInicio ? new Date(dataInicio) : null
-    }
-
-    if (Object.prototype.hasOwnProperty.call(updatePeriodoLetivoDto, "dataFim")) {
-      dataToUpdate.dataFim = dataFim ? new Date(dataFim) : null
-    }
+    if (status !== undefined) dataToUpdate.status = status
+    if (dataInicio !== undefined) dataToUpdate.dataInicio = dataInicioDate
+    if (dataFim !== undefined) dataToUpdate.dataFim = dataFimDate
 
     try {
-      const periodoLetivo: PeriodoLetivoEntity =
-        await this.prisma.periodoLetivo.update({
-          where: { id },
-          data: dataToUpdate,
-        })
+      const periodoLetivo = await this.prisma.periodoLetivo.update({
+        where: { id },
+        data: dataToUpdate,
+      })
       return PeriodoLetivoResponseDto.fromEntity(periodoLetivo)
     } catch (error) {
       if (
@@ -211,6 +271,56 @@ export class PeriodosLetivosService {
   }
 
   /**
+   * @method changeStatus
+   * @description Altera o status de um período letivo.
+   * @param {string} id - ID do período letivo.
+   * @param {ChangeStatusPeriodoLetivoDto} changeStatusDto - Novo status.
+   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo atualizado.
+   * @throws {NotFoundException} Se o período letivo não for encontrado.
+   * @throws {ConflictException} Se tentar ativar quando já existe outro período ativo.
+   */
+  async changeStatus(
+    id: string,
+    changeStatusDto: ChangeStatusPeriodoLetivoDto,
+  ): Promise<PeriodoLetivoResponseDto> {
+    const { status } = changeStatusDto
+
+    const periodoExistente = await this.prisma.periodoLetivo.findUnique({
+      where: { id },
+    })
+
+    if (!periodoExistente) {
+      throw new NotFoundException(`Período letivo com ID "${id}" não encontrado.`)
+    }
+
+    // Se está tentando ativar e o período não está ativo atualmente
+    if (
+      status === StatusPeriodoLetivo.ATIVO &&
+      periodoExistente.status !== StatusPeriodoLetivo.ATIVO
+    ) {
+      await this.validateUnicoPeriodoAtivo(id)
+    }
+
+    try {
+      const periodoLetivo = await this.prisma.periodoLetivo.update({
+        where: { id },
+        data: { status },
+      })
+      return PeriodoLetivoResponseDto.fromEntity(periodoLetivo)
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        throw new NotFoundException(
+          `Período letivo com ID "${id}" não encontrado.`,
+        )
+      }
+      throw error
+    }
+  }
+
+  /**
    * @method remove
    * @description Remove um período letivo.
    * @param {string} id - ID do período letivo a ser removido.
@@ -219,8 +329,9 @@ export class PeriodosLetivosService {
    */
   async remove(id: string): Promise<PeriodoLetivoResponseDto> {
     try {
-      const periodoLetivo: PeriodoLetivoEntity =
-        await this.prisma.periodoLetivo.delete({ where: { id } })
+      const periodoLetivo = await this.prisma.periodoLetivo.delete({
+        where: { id },
+      })
       return PeriodoLetivoResponseDto.fromEntity(periodoLetivo)
     } catch (error) {
       if (
@@ -236,112 +347,29 @@ export class PeriodosLetivosService {
   }
 
   /**
-   * @method activate
-   * @description Ativa um período letivo, definindo seu campo 'ativo' como true.
-   * @param {string} id - ID do período letivo a ser ativado.
-   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo ativado.
-   * @throws {NotFoundException} Se o período letivo não for encontrado.
+   * @method validateUnicoPeriodoAtivo
+   * @description Valida se já existe um período ativo (para garantir unicidade).
+   * @param {string} [excludeId] - ID do período a ser excluído da verificação.
+   * @throws {ConflictException} Se já existir um período ativo.
+   * @private
    */
-  async activate(id: string): Promise<PeriodoLetivoResponseDto> {
-    // 1. Verifica se o período letivo existe
-    const periodoLetivoExistente = await this.prisma.periodoLetivo.findUnique({
-      where: { id },
-    })
-
-    if (!periodoLetivoExistente) {
-      throw new NotFoundException(
-        `Período letivo com ID "${id}" não encontrado para ativação.`,
-      )
+  private async validateUnicoPeriodoAtivo(excludeId?: string): Promise<void> {
+    const whereClause: Prisma.PeriodoLetivoWhereInput = {
+      status: StatusPeriodoLetivo.ATIVO,
     }
 
-    // 2. Verifica se o período já está ativo (opcional)
-    // Se já estiver ativo, poderíamos retornar imediatamente.
-    // Por agora, vamos permitir que a operação continue (será idempotente).
-
-    // 3. Procede com a ativação
-    try {
-      const periodoLetivo = await this.prisma.periodoLetivo.update({
-        where: { id },
-        data: { ativo: true },
-      })
-      return PeriodoLetivoResponseDto.fromEntity(periodoLetivo)
-    } catch (error: any) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025" // Aspas duplas para o código de erro
-      ) {
-        // Este erro ocorreria se o registro fosse deletado entre o findUnique e o update.
-        throw new NotFoundException(
-          `Período letivo com ID "${id}" não encontrado para ativação.`,
-        )
-      }
-      let errorMessage = `Erro ao ativar o período letivo com ID "${id}".`
-      if (error instanceof Error && error.message) {
-        errorMessage += `: ${error.message}`
-      }
-      throw new InternalServerErrorException(errorMessage)
-    }
-  }
-
-  /**
-   * @method deactivate
-   * @description Desativa um período letivo, definindo seu campo 'ativo' como false.
-   * @param {string} id - ID do período letivo a ser desativado.
-   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo desativado.
-   * @throws {NotFoundException} Se o período letivo não for encontrado.
-   */
-  async deactivate(id: string): Promise<PeriodoLetivoResponseDto> {
-    // 1. Verifica se o período letivo existe
-    const periodoLetivoExistente = await this.prisma.periodoLetivo.findUnique({
-      where: { id },
-    })
-
-    if (!periodoLetivoExistente) {
-      throw new NotFoundException(
-        `Período letivo com ID "${id}" não encontrado para desativação.`,
-      )
+    if (excludeId) {
+      whereClause.NOT = { id: excludeId }
     }
 
-    // 2. Verifica se o período já está inativo (opcional)
-    // Se já estiver inativo, poderíamos retornar imediatamente ou permitir a operação idempotente.
-    // Por agora, vamos permitir que a operação continue.
-
-    // 3. Verifica se existem ofertas de disciplina vinculadas a este período letivo
-    // Presumindo que a entidade no Prisma se chama 'disciplinaOfertada' (camelCase) e tem um campo 'idPeriodoLetivo'
-    const ofertasVinculadas = await this.prisma.disciplinaOfertada.count({
-      where: { idPeriodoLetivo: id },
+    const periodoAtivoExistente = await this.prisma.periodoLetivo.findFirst({
+      where: whereClause,
     })
 
-    if (ofertasVinculadas > 0) {
+    if (periodoAtivoExistente) {
       throw new ConflictException(
-        `O período letivo com ID "${id}" não pode ser desativado pois possui ${ofertasVinculadas} oferta(s) de disciplina(s) vinculada(s).`,
+        `Já existe um período letivo ativo (${periodoAtivoExistente.ano}/${periodoAtivoExistente.semestre}). Desative-o antes de ativar outro período.`,
       )
-    }
-
-    // 4. Procede com a desativação
-    try {
-      const periodoLetivo = await this.prisma.periodoLetivo.update({
-        where: { id },
-        data: { ativo: false },
-      })
-      return PeriodoLetivoResponseDto.fromEntity(periodoLetivo)
-    } catch (error: any) {
-      // O erro P2025 (Record to update not found) é teoricamente coberto pela verificação inicial,
-      // mas pode ocorrer em condições de concorrência. Manter um tratamento genérico é bom.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025" // Aspas duplas para o código de erro
-      ) {
-        throw new NotFoundException(
-          `Período letivo com ID "${id}" não encontrado para desativação.`,
-        )
-      }
-      let errorMessage = `Erro ao desativar o período letivo com ID "${id}"`
-      if (error instanceof Error && error.message) {
-        errorMessage += `: ${error.message}`
-      }
-      // Re-lançar como um erro mais específico do NestJS se apropriado
-      throw new InternalServerErrorException(errorMessage)
     }
   }
 }

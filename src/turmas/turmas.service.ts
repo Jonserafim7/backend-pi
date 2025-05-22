@@ -8,6 +8,7 @@ import { PrismaService } from "../core/prisma/prisma.service"
 // import { CreateTurmaDto } from "./dto/create-turma.dto" // Not directly used here for batch creation
 import { TurmaResponseDto } from "./dto/turma-response.dto"
 import { Prisma } from "@prisma/client"
+import { PeriodoLetivoResponseDto } from "../periodos-letivos/dto"
 
 @Injectable()
 export class TurmasService {
@@ -238,16 +239,9 @@ export class TurmasService {
               : undefined,
             periodoLetivo:
               turma.disciplinaOfertada.periodoLetivo ?
-                {
-                  id: turma.disciplinaOfertada.periodoLetivo.id,
-                  ano: turma.disciplinaOfertada.periodoLetivo.ano,
-                  semestre: turma.disciplinaOfertada.periodoLetivo.semestre,
-                  dataInicio: turma.disciplinaOfertada.periodoLetivo.dataInicio,
-                  dataFim: turma.disciplinaOfertada.periodoLetivo.dataFim,
-                  createdAt: turma.disciplinaOfertada.periodoLetivo.dataCriacao,
-                  updatedAt:
-                    turma.disciplinaOfertada.periodoLetivo.dataAtualizacao,
-                }
+                PeriodoLetivoResponseDto.fromEntity(
+                  turma.disciplinaOfertada.periodoLetivo,
+                )
               : undefined,
             createdAt: turma.disciplinaOfertada.dataCriacao,
             updatedAt: turma.disciplinaOfertada.dataAtualizacao,

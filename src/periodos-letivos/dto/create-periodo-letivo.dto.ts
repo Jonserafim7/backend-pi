@@ -2,16 +2,15 @@ import { ApiProperty } from "@nestjs/swagger"
 import {
   IsNotEmpty,
   IsInt,
-  IsBoolean,
-  IsOptional,
-  IsISO8601,
+  IsDateString,
   Min,
   Max,
-  IsDateString,
-  ValidateIf,
+  IsEnum,
+  IsOptional,
 } from "class-validator"
 import { Transform } from "class-transformer"
 import { IsDateAfter } from "@/common/validators/is-date-after.validator"
+import { StatusPeriodoLetivo } from "@prisma/client"
 
 /**
  * DTO para criação de um novo período letivo
@@ -24,10 +23,16 @@ export class CreatePeriodoLetivoDto {
     minimum: 2000,
     maximum: 2100,
   })
-  @IsInt({ message: "O ano deve ser um número inteiro" })
-  @Min(2000, { message: "O ano deve ser maior ou igual a 2000" })
-  @Max(2100, { message: "O ano deve ser menor ou igual a 2100" })
-  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  @IsNotEmpty({ message: "O ano é obrigatório." })
+  @IsInt({ message: "O ano deve ser um número inteiro." })
+  @Min(2000, { message: "O ano deve ser maior ou igual a 2000." })
+  @Max(2100, { message: "O ano deve ser menor ou igual a 2100." })
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === "string") {
+      return parseInt(value, 10)
+    }
+    return value
+  })
   ano!: number
 
   @ApiProperty({
@@ -49,58 +54,40 @@ export class CreatePeriodoLetivoDto {
   semestre!: number
 
   @ApiProperty({
-    description: "Indica se o período está ativo para ofertas de disciplinas",
-    example: false,
-    default: false,
+    description: "Status inicial do período letivo",
+    enum: StatusPeriodoLetivo,
+    example: StatusPeriodoLetivo.INATIVO,
+    default: StatusPeriodoLetivo.INATIVO,
+    required: false,
   })
-  @IsBoolean({ message: "O campo ativo deve ser um booleano" })
   @IsOptional()
-  @Transform(({ value }: { value: string | boolean }) => {
-    if (typeof value === "string") {
-      if (value.toLowerCase() === "true") return true
-      if (value.toLowerCase() === "false") return false
-    }
-    return value as boolean
+  @IsEnum(StatusPeriodoLetivo, {
+    message: "O status deve ser ATIVO ou INATIVO.",
   })
-  ativo?: boolean
+  status?: StatusPeriodoLetivo = StatusPeriodoLetivo.INATIVO
 
   @ApiProperty({
-    description: "Data de início do período letivo",
+    description: "Data de início do período letivo no formato YYYY-MM-DD",
     example: "2025-02-10",
-    required: false,
   })
-  @IsISO8601(
-    { strict: true },
-    { message: "A data de início deve estar em formato ISO 8601 (YYYY-MM-DD)" },
+  @IsNotEmpty({ message: "A data de início é obrigatória." })
+  @IsDateString(
+    {},
+    { message: "A data de início deve estar em formato válido (YYYY-MM-DD)." },
   )
-  @IsOptional()
-  dataInicio?: string
+  dataInicio!: string
 
   @ApiProperty({
-    description: "Data de fim do período letivo",
+    description: "Data de fim do período letivo no formato YYYY-MM-DD",
     example: "2025-06-30",
-    required: false,
-    nullable: true,
   })
-  @IsOptional()
-  @ValidateIf(
-    (obj: CreatePeriodoLetivoDto) =>
-      obj.dataFim !== null && obj.dataFim !== undefined,
-  )
+  @IsNotEmpty({ message: "A data de fim é obrigatória." })
   @IsDateString(
-    { strict: true },
-    { message: "dataFim deve ser uma data válida no formato ISO 8601." },
+    {},
+    { message: "A data de fim deve estar em formato válido (YYYY-MM-DD)." },
   )
   @IsDateAfter("dataInicio", {
-    message: "dataFim deve ser posterior a dataInicio.",
+    message: "A data de fim deve ser posterior à data de início.",
   })
-  @Transform(({ value }: { value: string | null }) => {
-    if (value === "") return undefined
-    return (
-      value === null ? null
-      : value ? new Date(value)
-      : undefined
-    )
-  })
-  dataFim?: Date | null = null
+  dataFim!: string
 }

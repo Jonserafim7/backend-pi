@@ -6,27 +6,30 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  Query,
 } from "@nestjs/common"
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiQuery,
   ApiParam,
   ApiBearerAuth,
+  ApiQuery,
 } from "@nestjs/swagger"
 import { UseGuards } from "@nestjs/common"
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"
 import { RolesGuard } from "../auth/guards/roles.guard"
 import { PeriodosLetivosService } from "./periodos-letivos.service"
-import { CreatePeriodoLetivoDto } from "./dto/create-periodo-letivo.dto"
-import { UpdatePeriodoLetivoDto } from "./dto/update-periodo-letivo.dto"
-import { FindPeriodoLetivoDto } from "./dto/find-periodo-letivo.dto"
-import { PeriodoLetivoResponseDto } from "./dto/periodo-letivo-response.dto"
+import {
+  CreatePeriodoLetivoDto,
+  UpdatePeriodoLetivoDto,
+  PeriodoLetivoResponseDto,
+  FindPeriodoLetivoDto,
+  ChangeStatusPeriodoLetivoDto,
+} from "./dto"
 import { PapelUsuario } from "@prisma/client"
 import { Roles } from "../auth/decorators/roles.decorator"
 
@@ -38,7 +41,6 @@ import { Roles } from "../auth/decorators/roles.decorator"
 @ApiTags("Períodos Letivos")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
 @Controller("periodos-letivos")
 export class PeriodosLetivosController {
   /**
@@ -47,17 +49,9 @@ export class PeriodosLetivosController {
    */
   constructor(private readonly periodosLetivosService: PeriodosLetivosService) {}
 
-  /**
-   * @method create
-   * @description Cria um novo período letivo.
-   * @param {CreatePeriodoLetivoDto} createPeriodoLetivoDto - Dados para criar o período letivo.
-   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo criado.
-   * @ApiOperation Resumo da operação para o Swagger.
-   * @ApiResponse Status 201: Período letivo criado com sucesso.
-   * @ApiResponse Status 400: Requisição inválida.
-   */
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
   @ApiOperation({ summary: "Cria um novo período letivo" })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -66,7 +60,12 @@ export class PeriodosLetivosController {
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: "Dados inválidos para criação do período letivo.",
+    description: "Dados inválidos ou data de fim anterior à data de início.",
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description:
+      "Já existe um período letivo para o ano e semestre informados ou já existe um período ativo.",
   })
   async create(
     @Body() createPeriodoLetivoDto: CreatePeriodoLetivoDto,
@@ -74,71 +73,63 @@ export class PeriodosLetivosController {
     return this.periodosLetivosService.create(createPeriodoLetivoDto)
   }
 
-  /**
-   * @method findAll
-   * @description Retorna uma lista de períodos letivos com base nos filtros e paginação.
-   * @param {FindPeriodoLetivoDto} findPeriodoLetivoDto - Parâmetros de filtro e paginação.
-   * @returns {Promise<{ data: PeriodoLetivoResponseDto[]; count: number }>} Lista de períodos letivos e a contagem total.
-   * @ApiOperation Resumo da operação para o Swagger.
-   * @ApiResponse Status 200: Lista de períodos letivos retornada com sucesso.
-   */
   @Get()
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN, PapelUsuario.COORDENADOR)
   @ApiOperation({
-    summary: "Lista todos os períodos letivos com filtros e paginação",
+    summary: "Lista todos os períodos letivos com filtros opcionais",
   })
   @ApiQuery({
     name: "ano",
     required: false,
-    type: Number,
-    description: "Filtra por ano do período letivo",
+    description: "Filtrar por ano",
+    example: 2025,
   })
   @ApiQuery({
     name: "semestre",
     required: false,
-    type: Number,
-    description: "Filtra por semestre do período letivo",
-  })
-  @ApiQuery({
-    name: "ativo",
-    required: false,
-    type: Boolean,
-    description: "Filtra por períodos letivos ativos ou inativos",
-  })
-  @ApiQuery({
-    name: "pagina",
-    required: false,
-    type: Number,
-    description: "Número da página para paginação",
+    description: "Filtrar por semestre (1 ou 2)",
     example: 1,
   })
   @ApiQuery({
-    name: "limite",
+    name: "status",
     required: false,
-    type: Number,
-    description: "Número de itens por página",
-    example: 10,
+    description: "Filtrar por status",
+    enum: ["ATIVO", "INATIVO"],
   })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Lista de períodos letivos retornada com sucesso.",
-    type: [PeriodoLetivoResponseDto], // Idealmente, um DTO de paginação que envolva isso
+    type: [PeriodoLetivoResponseDto],
   })
   async findAll(
-    @Query() findPeriodoLetivoDto: FindPeriodoLetivoDto,
-  ): Promise<{ data: PeriodoLetivoResponseDto[]; count: number }> {
-    return this.periodosLetivosService.findAll(findPeriodoLetivoDto)
+    @Query() params: FindPeriodoLetivoDto,
+  ): Promise<PeriodoLetivoResponseDto[]> {
+    return this.periodosLetivosService.findAll(params)
   }
 
-  /**
-   * @method findOne
-   * @description Retorna um período letivo específico pelo ID.
-   * @param {string} id - ID do período letivo (UUID).
-   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo encontrado.
-   * @ApiOperation Resumo da operação para o Swagger.
-   * @ApiResponse Status 200: Período letivo encontrado.
-   * @ApiResponse Status 404: Período letivo não encontrado.
-   */
+  @Get("ativo")
+  @Roles(
+    PapelUsuario.DIRETOR,
+    PapelUsuario.ADMIN,
+    PapelUsuario.COORDENADOR,
+    PapelUsuario.PROFESSOR,
+  )
+  @ApiOperation({ summary: "Busca o período letivo ativo atual" })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Período letivo ativo encontrado.",
+    type: PeriodoLetivoResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: "Nenhum período letivo ativo encontrado.",
+  })
+  async findPeriodoAtivo(): Promise<PeriodoLetivoResponseDto | null> {
+    return this.periodosLetivosService.findPeriodoAtivo()
+  }
+
   @Get(":id")
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN, PapelUsuario.COORDENADOR)
   @ApiOperation({ summary: "Busca um período letivo pelo ID" })
   @ApiParam({
     name: "id",
@@ -161,18 +152,8 @@ export class PeriodosLetivosController {
     return this.periodosLetivosService.findOne(id)
   }
 
-  /**
-   * @method update
-   * @description Atualiza um período letivo existente.
-   * @param {string} id - ID do período letivo a ser atualizado (UUID).
-   * @param {UpdatePeriodoLetivoDto} updatePeriodoLetivoDto - Dados para atualizar o período letivo.
-   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo atualizado.
-   * @ApiOperation Resumo da operação para o Swagger.
-   * @ApiResponse Status 200: Período letivo atualizado com sucesso.
-   * @ApiResponse Status 404: Período letivo não encontrado.
-   * @ApiResponse Status 400: Requisição inválida.
-   */
   @Patch(":id")
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
   @ApiOperation({ summary: "Atualiza um período letivo existente" })
   @ApiParam({
     name: "id",
@@ -187,11 +168,15 @@ export class PeriodosLetivosController {
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
-    description: "Período letivo não encontrado para atualização.",
+    description: "Período letivo não encontrado.",
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: "Dados inválidos para atualização do período letivo.",
+    description: "Dados inválidos ou data de fim anterior à data de início.",
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: "Conflito de ano/semestre ou período ativo já existente.",
   })
   async update(
     @Param("id", ParseUUIDPipe) id: string,
@@ -200,17 +185,37 @@ export class PeriodosLetivosController {
     return this.periodosLetivosService.update(id, updatePeriodoLetivoDto)
   }
 
-  /**
-   * @method remove
-   * @description Remove um período letivo.
-   * @param {string} id - ID do período letivo a ser removido (UUID).
-   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo removido.
-   * @ApiOperation Resumo da operação para o Swagger.
-   * @ApiResponse Status 204: Período letivo removido com sucesso.
-   * @ApiResponse Status 404: Período letivo não encontrado.
-   */
+  @Patch(":id/status")
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
+  @ApiOperation({ summary: "Altera o status de um período letivo" })
+  @ApiParam({
+    name: "id",
+    type: String,
+    description: "ID do período letivo (UUID)",
+    example: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Status do período letivo alterado com sucesso.",
+    type: PeriodoLetivoResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: "Período letivo não encontrado.",
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: "Já existe um período letivo ativo.",
+  })
+  async changeStatus(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() changeStatusDto: ChangeStatusPeriodoLetivoDto,
+  ): Promise<PeriodoLetivoResponseDto> {
+    return this.periodosLetivosService.changeStatus(id, changeStatusDto)
+  }
+
   @Delete(":id")
-  @HttpCode(HttpStatus.NO_CONTENT) // Retorna 204 em vez do objeto removido
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
   @ApiOperation({ summary: "Remove um período letivo" })
   @ApiParam({
     name: "id",
@@ -219,79 +224,17 @@ export class PeriodosLetivosController {
     example: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
   })
   @ApiResponse({
-    status: HttpStatus.NO_CONTENT,
+    status: HttpStatus.OK,
     description: "Período letivo removido com sucesso.",
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: "Período letivo não encontrado para remoção.",
-  })
-  async remove(@Param("id", ParseUUIDPipe) id: string): Promise<void> {
-    // Mudado para Promise<void>
-    await this.periodosLetivosService.remove(id) // O serviço retorna o DTO, mas o controller não precisa
-  }
-
-  /**
-   * @method activate
-   * @description Ativa um período letivo.
-   * @param {string} id - ID do período letivo a ser ativado (UUID).
-   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo ativado.
-   * @ApiOperation Resumo da operação para o Swagger.
-   * @ApiResponse Status 200: Período letivo ativado com sucesso.
-   * @ApiResponse Status 404: Período letivo não encontrado.
-   */
-  @Patch(":id/ativar")
-  @ApiOperation({ summary: "Ativa um período letivo" })
-  @ApiParam({
-    name: "id",
-    type: String,
-    description: "ID do período letivo a ser ativado (UUID)",
-    example: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: "Período letivo ativado com sucesso.",
     type: PeriodoLetivoResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
-    description: "Período letivo não encontrado para ativação.",
+    description: "Período letivo não encontrado.",
   })
-  async activate(
+  async remove(
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<PeriodoLetivoResponseDto> {
-    return this.periodosLetivosService.activate(id)
-  }
-
-  /**
-   * @method deactivate
-   * @description Desativa um período letivo.
-   * @param {string} id - ID do período letivo a ser desativado (UUID).
-   * @returns {Promise<PeriodoLetivoResponseDto>} O período letivo desativado.
-   * @ApiOperation Resumo da operação para o Swagger.
-   * @ApiResponse Status 200: Período letivo desativado com sucesso.
-   * @ApiResponse Status 404: Período letivo não encontrado.
-   */
-  @Patch(":id/desativar")
-  @ApiOperation({ summary: "Desativa um período letivo" })
-  @ApiParam({
-    name: "id",
-    type: String,
-    description: "ID do período letivo a ser desativado (UUID)",
-    example: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: "Período letivo desativado com sucesso.",
-    type: PeriodoLetivoResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: "Período letivo não encontrado para desativação.",
-  })
-  async deactivate(
-    @Param("id", ParseUUIDPipe) id: string,
-  ): Promise<PeriodoLetivoResponseDto> {
-    return this.periodosLetivosService.deactivate(id)
+    return this.periodosLetivosService.remove(id)
   }
 }

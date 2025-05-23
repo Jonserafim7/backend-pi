@@ -86,7 +86,18 @@ export class DisponibilidadeProfessorController {
     @Body() createDto: CreateDisponibilidadeDto,
     @CurrentUser() user: UserContext,
   ): Promise<DisponibilidadeResponseDto> {
-    return this.disponibilidadeService.create(createDto, user)
+    console.log("🎯 [Controller.create] Endpoint chamado!")
+    console.log("🎯 [Controller.create] DTO recebido:", createDto)
+    console.log("🎯 [Controller.create] Usuário:", user)
+
+    try {
+      const result = await this.disponibilidadeService.create(createDto, user)
+      console.log("✅ [Controller.create] Sucesso:", result)
+      return result
+    } catch (error) {
+      console.error("❌ [Controller.create] Erro:", error)
+      throw error
+    }
   }
 
   /**

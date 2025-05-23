@@ -39,52 +39,98 @@ export class DisponibilidadeProfessorService {
     createDto: CreateDisponibilidadeDto,
     userContext: { id: string; papel: PapelUsuario },
   ): Promise<DisponibilidadeResponseDto> {
+    console.log("🔧 [Service.create] Método chamado!")
+    console.log("🔧 [Service.create] DTO:", createDto)
+    console.log("🔧 [Service.create] User context:", userContext)
+
     this.logger.log(
       `Criando disponibilidade para professor ${createDto.idUsuarioProfessor}`,
     )
 
     // Validar autorização - apenas o próprio professor ou admin pode criar
-    this.validateUserPermission(userContext, createDto.idUsuarioProfessor)
+    console.log("🔧 [Service.create] Validando permissões...")
+    try {
+      this.validateUserPermission(userContext, createDto.idUsuarioProfessor)
+      console.log("✅ [Service.create] Permissões OK")
+    } catch (error) {
+      console.error("❌ [Service.create] Erro de permissão:", error)
+      throw error
+    }
 
     // Validar se o usuário é realmente um professor
-    await this.validateProfessorExists(createDto.idUsuarioProfessor)
+    console.log("🔧 [Service.create] Validando se usuário é professor...")
+    try {
+      await this.validateProfessorExists(createDto.idUsuarioProfessor)
+      console.log("✅ [Service.create] Professor validado")
+    } catch (error) {
+      console.error("❌ [Service.create] Erro na validação do professor:", error)
+      throw error
+    }
 
-    // Validar se o período letivo está ativo
-    await this.validatePeriodoLetivoAtivo(createDto.idPeriodoLetivo)
+    // Validar se o período letivo existe e está ativo
+    console.log("🔧 [Service.create] Validando período letivo...")
+    try {
+      await this.validatePeriodoLetivoAtivo(createDto.idPeriodoLetivo)
+      console.log("✅ [Service.create] Período letivo validado")
+    } catch (error) {
+      console.error(
+        "❌ [Service.create] Erro na validação do período letivo:",
+        error,
+      )
+      throw error
+    }
 
     // Validar horários (hora fim > hora início)
-    this.validateHorarios(createDto.horaInicio, createDto.horaFim)
+    console.log("🔧 [Service.create] Validando horários...")
+    try {
+      this.validateHorarios(createDto.horaInicio, createDto.horaFim)
+      console.log("✅ [Service.create] Horários validados")
+    } catch (error) {
+      console.error("❌ [Service.create] Erro na validação de horários:", error)
+      throw error
+    }
 
-    // Verificar conflitos de horário
-    await this.validateNoConflictingSchedule(
-      createDto.idUsuarioProfessor,
-      createDto.idPeriodoLetivo,
-      createDto.diaDaSemana,
-      createDto.horaInicio,
-      createDto.horaFim,
-    )
+    // Verificar conflito de horários
+    console.log("🔧 [Service.create] Verificando conflitos de horário...")
+    try {
+      await this.validateNoConflictingSchedule(
+        createDto.idUsuarioProfessor,
+        createDto.idPeriodoLetivo,
+        createDto.diaDaSemana,
+        createDto.horaInicio,
+        createDto.horaFim,
+      )
+      console.log("✅ [Service.create] Sem conflitos de horário")
+    } catch (error) {
+      console.error("❌ [Service.create] Erro de conflito de horário:", error)
+      throw error
+    }
 
+    // Criar a disponibilidade
+    console.log("🔧 [Service.create] Criando disponibilidade no banco...")
     try {
       const disponibilidade = await this.prisma.disponibilidadeProfessor.create({
         data: {
-          ...createDto,
-          status: createDto.status ?? StatusDisponibilidade.DISPONIVEL,
+          idUsuarioProfessor: createDto.idUsuarioProfessor,
+          idPeriodoLetivo: createDto.idPeriodoLetivo,
+          diaDaSemana: createDto.diaDaSemana,
+          horaInicio: createDto.horaInicio,
+          horaFim: createDto.horaFim,
+          status: createDto.status || StatusDisponibilidade.DISPONIVEL,
         },
         include: this.getIncludeOptions(),
       })
 
+      console.log("✅ [Service.create] Disponibilidade criada:", disponibilidade)
+
       this.logger.log(`Disponibilidade criada com sucesso: ${disponibilidade.id}`)
-      return this.mapToResponseDto(disponibilidade)
+
+      const response = this.mapToResponseDto(disponibilidade)
+
+      console.log("✅ [Service.create] Response DTO:", response)
+      return response
     } catch (error) {
-      this.logger.error("Erro ao criar disponibilidade", error)
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
-        throw new BadRequestException(
-          "Já existe uma disponibilidade para este professor no mesmo período, dia e horário",
-        )
-      }
+      console.error("❌ [Service.create] Erro ao criar no banco:", error)
       throw error
     }
   }

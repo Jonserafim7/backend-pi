@@ -12,6 +12,7 @@ import { ConfiguracoesHorarioModule } from "./configuracoes-horario/configuracoe
 import { MatrizesCurricularesModule } from "./matrizes-curriculares/matrizes-curriculares.module"
 import { DisciplinasModule } from "./disciplinas/disciplinas.module"
 import { DisciplinasOfertadasModule } from "./disciplinas-ofertadas/disciplinas-ofertadas.module"
+import { TurmasModule } from "./turmas/turmas.module"
 import { PeriodosLetivosModule } from "./periodos-letivos/periodos-letivos.module"
 import { DisponibilidadeProfessorModule } from "./disponibilidade-professores/disponibilidade-professor.module"
 
@@ -29,6 +30,7 @@ import { DisponibilidadeProfessorModule } from "./disponibilidade-professores/di
     MatrizesCurricularesModule,
     DisciplinasModule,
     DisciplinasOfertadasModule,
+    TurmasModule,
     PeriodosLetivosModule,
     DisponibilidadeProfessorModule,
   ],

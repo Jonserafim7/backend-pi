@@ -8,13 +8,13 @@ import { PrismaService } from "../core/prisma/prisma.service"
 import { CreateMatrizCurricularDto } from "./dto/create-matriz-curricular.dto"
 import { UpdateMatrizCurricularDto } from "./dto/update-matriz-curricular.dto"
 import { MatrizCurricularResponseDto } from "./dto/matriz-curricular-response.dto"
+import { DisciplinaResponseDto } from "../disciplinas/dto/disciplina-response.dto"
 import { Prisma } from "@prisma/client"
 
 /**
- * Serviço para gerenciamento de Matrizes Curriculares
+ * Service responsável por gerenciar as operações de Matrizes Curriculares
  *
- * Implementa a lógica de negócio para criação, consulta, atualização e
- * remoção de matrizes curriculares, incluindo a gestão de suas disciplinas.
+ * Implementa CRUD completo e validações de regras de negócio
  */
 @Injectable()
 export class MatrizesCurricularesService {
@@ -23,10 +23,9 @@ export class MatrizesCurricularesService {
   /**
    * Cria uma nova matriz curricular
    *
-   * @param createMatrizCurricularDto - Dados para criação da matriz curricular
-   * @returns Promise com a matriz curricular criada e suas disciplinas
-   * @throws BadRequestException se o curso não existir
-   * @throws BadRequestException se alguma disciplina não existir
+   * @param createMatrizCurricularDto - Dados para criação da matriz
+   * @returns Matriz curricular criada
+   * @throws BadRequestException se o curso não for encontrado ou disciplinas não existirem
    */
   async create(
     createMatrizCurricularDto: CreateMatrizCurricularDto,
@@ -43,7 +42,7 @@ export class MatrizesCurricularesService {
     }
 
     // Verificar se todas as disciplinas existem
-    if (disciplinasIds.length > 0) {
+    if (disciplinasIds && disciplinasIds.length > 0) {
       const disciplinasExistentes = await this.prisma.disciplina.findMany({
         where: { id: { in: disciplinasIds } },
         select: { id: true },
@@ -63,39 +62,42 @@ export class MatrizesCurricularesService {
     // Usar transação para garantir atomicidade
     return this.prisma.$transaction(async (tx) => {
       // Criar a matriz curricular
-      const matrizCurricular = await tx.matrizCurricular.create({
+      const novaMatriz = await tx.matrizCurricular.create({
         data: {
           nome,
           idCurso,
         },
       })
 
-      // Criar as associações com disciplinas
-      if (disciplinasIds.length > 0) {
+      // Associar disciplinas se fornecidas
+      if (disciplinasIds && disciplinasIds.length > 0) {
         await tx.matrizDisciplina.createMany({
           data: disciplinasIds.map((idDisciplina) => ({
-            idMatrizCurricular: matrizCurricular.id,
+            idMatrizCurricular: novaMatriz.id,
             idDisciplina,
           })),
         })
       }
 
-      // Buscar a matriz curricular criada com suas associações
-      return this.findOneWithTransaction(matrizCurricular.id, tx)
+      // Buscar e retornar a matriz com todas as informações
+      return this.findOneWithTransaction(novaMatriz.id, tx)
     })
   }
 
   /**
    * Lista todas as matrizes curriculares
    *
-   * @param idCurso - Opcional, filtra por curso específico
-   * @returns Promise com array de matrizes curriculares
+   * @param idCurso - Filtro opcional por curso
+   * @returns Lista de matrizes curriculares
    */
   async findAll(idCurso?: string): Promise<MatrizCurricularResponseDto[]> {
-    const whereClause: Prisma.MatrizCurricularWhereInput =
-      idCurso ? { idCurso } : {}
+    const whereClause: Prisma.MatrizCurricularWhereInput = {}
 
-    const matrizesCurriculares = await this.prisma.matrizCurricular.findMany({
+    if (idCurso) {
+      whereClause.idCurso = idCurso
+    }
+
+    const matrizes = await this.prisma.matrizCurricular.findMany({
       where: whereClause,
       include: {
         curso: {
@@ -110,22 +112,22 @@ export class MatrizesCurricularesService {
         },
       },
       orderBy: {
-        nome: "asc",
+        dataCriacao: "desc",
       },
     })
 
-    return matrizesCurriculares.map((matriz) => this.mapToResponse(matriz))
+    return matrizes.map((matriz) => this.mapToResponse(matriz))
   }
 
   /**
-   * Busca uma matriz curricular pelo ID
+   * Busca uma matriz curricular específica
    *
    * @param id - ID da matriz curricular
-   * @returns Promise com os dados da matriz curricular
+   * @returns Matriz curricular encontrada
    * @throws NotFoundException se a matriz não for encontrada
    */
   async findOne(id: string): Promise<MatrizCurricularResponseDto> {
-    const matrizCurricular = await this.prisma.matrizCurricular.findUnique({
+    const matriz = await this.prisma.matrizCurricular.findUnique({
       where: { id },
       include: {
         curso: {
@@ -141,26 +143,26 @@ export class MatrizesCurricularesService {
       },
     })
 
-    if (!matrizCurricular) {
+    if (!matriz) {
       throw new NotFoundException(`Matriz curricular com ID ${id} não encontrada`)
     }
 
-    return this.mapToResponse(matrizCurricular)
+    return this.mapToResponse(matriz)
   }
 
   /**
-   * Método interno para buscar uma matriz curricular usando uma transação
+   * Busca uma matriz curricular específica usando uma transação
+   * (método auxiliar para operações internas)
    *
    * @param id - ID da matriz curricular
-   * @param tx - Transação Prisma
-   * @returns Promise com os dados da matriz curricular
-   * @throws NotFoundException se a matriz não for encontrada
+   * @param tx - Cliente da transação
+   * @returns Matriz curricular encontrada
    */
   private async findOneWithTransaction(
     id: string,
     tx: Prisma.TransactionClient,
   ): Promise<MatrizCurricularResponseDto> {
-    const matrizCurricular = await tx.matrizCurricular.findUnique({
+    const matriz = await tx.matrizCurricular.findUniqueOrThrow({
       where: { id },
       include: {
         curso: {
@@ -176,11 +178,7 @@ export class MatrizesCurricularesService {
       },
     })
 
-    if (!matrizCurricular) {
-      throw new NotFoundException(`Matriz curricular com ID ${id} não encontrada`)
-    }
-
-    return this.mapToResponse(matrizCurricular)
+    return this.mapToResponse(matriz)
   }
 
   /**
@@ -188,10 +186,9 @@ export class MatrizesCurricularesService {
    *
    * @param id - ID da matriz curricular
    * @param updateMatrizCurricularDto - Dados para atualização
-   * @returns Promise com a matriz curricular atualizada
+   * @returns Matriz curricular atualizada
    * @throws NotFoundException se a matriz não for encontrada
-   * @throws BadRequestException se o curso não existir
-   * @throws BadRequestException se alguma disciplina não existir
+   * @throws BadRequestException se dados inválidos forem fornecidos
    */
   async update(
     id: string,
@@ -389,12 +386,9 @@ export class MatrizesCurricularesService {
       nomeCurso: matriz.curso.nome,
       createdAt: matriz.dataCriacao,
       updatedAt: matriz.dataAtualizacao,
-      disciplinas: matriz.disciplinasDaMatriz.map((md) => ({
-        id: md.disciplina.id,
-        nome: md.disciplina.nome,
-        codigo: md.disciplina.codigo || "",
-        cargaHoraria: md.disciplina.cargaHoraria,
-      })),
+      disciplinas: matriz.disciplinasDaMatriz.map((md) =>
+        DisciplinaResponseDto.fromEntity(md.disciplina),
+      ),
     }
   }
 }

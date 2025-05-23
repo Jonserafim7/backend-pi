@@ -1,35 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
-
-/**
- * DTO para representação da disciplina na resposta da API
- *
- * Contém informações básicas da disciplina associada à matriz curricular
- */
-export class DisciplinaResponseDto {
-  @ApiProperty({
-    description: "ID único da disciplina",
-    example: "550e8400-e29b-41d4-a716-446655440000",
-  })
-  id: string = ""
-
-  @ApiProperty({
-    description: "Nome da disciplina",
-    example: "Programação Orientada a Objetos",
-  })
-  nome: string = ""
-
-  @ApiProperty({
-    description: "Código da disciplina",
-    example: "CC0001",
-  })
-  codigo: string = ""
-
-  @ApiProperty({
-    description: "Carga horária da disciplina em horas",
-    example: 60,
-  })
-  cargaHoraria: number = 0
-}
+import { DisciplinaResponseDto } from "../../disciplinas/dto/disciplina-response.dto"
 
 /**
  * DTO para resposta padrão das operações de Matriz Curricular

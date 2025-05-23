@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { CreateDisciplinaOfertadaDto } from "./create-disciplina-ofertada.dto"
 import { DisciplinaResponseDto } from "../../disciplinas/dto/disciplina-response.dto"
-import { PeriodoLetivoDto } from "../../periodos-letivos/dto/periodo-letivo.dto"
+import { PeriodoLetivoResponseDto } from "../../periodos-letivos/dto"
 
 export class DisciplinaOfertadaResponseDto extends CreateDisciplinaOfertadaDto {
   @ApiProperty({
@@ -18,9 +18,9 @@ export class DisciplinaOfertadaResponseDto extends CreateDisciplinaOfertadaDto {
 
   @ApiProperty({
     description: "Detalhes do período letivo da oferta",
-    type: () => PeriodoLetivoDto,
+    type: () => PeriodoLetivoResponseDto,
   })
-  periodoLetivo?: PeriodoLetivoDto
+  periodoLetivo?: PeriodoLetivoResponseDto
 
   @ApiProperty({
     description: "Data de criação da oferta da disciplina",

@@ -37,8 +37,8 @@ CREATE TABLE "periodos_letivos" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "ano" INTEGER NOT NULL,
     "semestre" INTEGER NOT NULL,
-    "data_inicio" DATETIME,
-    "data_fim" DATETIME,
+    "data_inicio" DATETIME NOT NULL,
+    "data_fim" DATETIME NOT NULL,
     "data_criacao" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "data_atualizacao" DATETIME NOT NULL
 );

@@ -4,6 +4,7 @@ import {
   DiaSemana,
   StatusDisponibilidade,
   PropostaHorarioStatus,
+  StatusPeriodoLetivo,
 } from "@prisma/client"
 import * as bcrypt from "bcrypt"
 
@@ -112,6 +113,7 @@ async function main() {
     data: {
       ano: 2025,
       semestre: 1,
+      status: StatusPeriodoLetivo.ATIVO,
       dataInicio: new Date("2025-02-10"),
       dataFim: new Date("2025-06-30"),
     },

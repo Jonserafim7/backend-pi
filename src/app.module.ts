@@ -13,6 +13,7 @@ import { MatrizesCurricularesModule } from "./matrizes-curriculares/matrizes-cur
 import { DisciplinasModule } from "./disciplinas/disciplinas.module"
 import { DisciplinasOfertadasModule } from "./disciplinas-ofertadas/disciplinas-ofertadas.module"
 import { PeriodosLetivosModule } from "./periodos-letivos/periodos-letivos.module"
+import { DisponibilidadeProfessorModule } from "./disponibilidade-professores/disponibilidade-professor.module"
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { PeriodosLetivosModule } from "./periodos-letivos/periodos-letivos.modul
     DisciplinasModule,
     DisciplinasOfertadasModule,
     PeriodosLetivosModule,
+    DisponibilidadeProfessorModule,
   ],
   controllers: [AppController],
   providers: [

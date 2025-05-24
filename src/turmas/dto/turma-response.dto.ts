@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { DisciplinaOfertadaResponseDto } from "../../disciplinas-ofertadas/dto/disciplina-ofertada-response.dto" // Assuming path
-// import { UsuarioResponseDto } from "../../usuarios/dto/usuario-response.dto"; // If we include professor
+import { UsuarioResponseDto } from "../../usuarios/dto/usuario.response.dto"
 
 export class TurmaResponseDto {
   @ApiProperty({ description: "ID da turma", example: "uuid-turma-123" })
@@ -23,12 +23,20 @@ export class TurmaResponseDto {
   })
   disciplinaOfertada?: DisciplinaOfertadaResponseDto
 
-  // Optional: Include professor assigned
-  // @ApiProperty({ description: "ID do professor atribuído", example: "uuid-professor-789", required: false })
-  // idProfessor?: string;
+  // Professor assigned fields
+  @ApiProperty({
+    description: "ID do professor atribuído à turma",
+    example: "uuid-professor-789",
+    required: false,
+  })
+  idUsuarioProfessor?: string | null
 
-  // @ApiProperty({ description: "Detalhes do professor", type: () => UsuarioResponseDto, required: false })
-  // professor?: UsuarioResponseDto;
+  @ApiProperty({
+    description: "Detalhes do professor atribuído",
+    type: () => UsuarioResponseDto,
+    required: false,
+  })
+  professorAlocado?: UsuarioResponseDto | null
 
   @ApiProperty({ description: "Data de criação da turma" })
   dataCriacao!: Date

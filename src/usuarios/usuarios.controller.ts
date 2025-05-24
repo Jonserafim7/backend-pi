@@ -253,7 +253,7 @@ export class UsuariosController {
     @Param("id") idSolicitado: string,
     @Req() req: RequestWithUser,
   ): Promise<UsuarioResponseDto> {
-    const idUsuarioLogado = req.user.sub
+    const idUsuarioLogado = req.user.id
     const papelUsuarioLogado = req.user.papel
     const emailUsuarioLogado = req.user.email
 
@@ -347,7 +347,7 @@ export class UsuariosController {
     @Body() updateUsuarioDto: UpdateUsuarioDto,
     @Req() req: RequestWithUser,
   ): Promise<UsuarioResponseDto> {
-    const idUsuarioLogado = req.user.sub
+    const idUsuarioLogado = req.user.id
     const papelUsuarioLogado = req.user.papel
     const emailUsuarioLogado = req.user.email
 
@@ -500,7 +500,7 @@ export class UsuariosController {
     @Param("id") idSolicitado: string,
     @Req() req: RequestWithUser,
   ): Promise<UsuarioResponseDto> {
-    const idUsuarioLogado = req.user.sub
+    const idUsuarioLogado = req.user.id
     const papelUsuarioLogado = req.user.papel
     const emailUsuarioLogado = req.user.email
 

@@ -61,10 +61,10 @@ export class DisciplinasOfertadasController {
         "Apenas coordenadores podem criar ofertas de disciplinas.",
       )
     }
-    // const coordenadorId = user.id; // Extracted from JWT
+    // Extrair o ID do coordenador do JWT
     return this.disciplinasOfertadasService.create(
       createDisciplinaOfertadaDto,
-      user.sub, // Passar o ID do coordenador logado
+      user.id, // Passar o ID do coordenador logado
     )
   }
 
@@ -184,7 +184,7 @@ export class DisciplinasOfertadasController {
     return this.disciplinasOfertadasService.update(
       id,
       updateDisciplinaOfertadaDto,
-      user.sub, // Passar o ID do coordenador solicitante para verificação de propriedade
+      user.id, // Passar o ID do coordenador solicitante para verificação de propriedade
     )
   }
 
@@ -214,6 +214,6 @@ export class DisciplinasOfertadasController {
         "Apenas coordenadores podem remover ofertas de disciplinas.",
       )
     }
-    return this.disciplinasOfertadasService.remove(id, user.sub) // Passar o ID do coordenador solicitante
+    return this.disciplinasOfertadasService.remove(id, user.id) // Passar o ID do coordenador solicitante
   }
 }

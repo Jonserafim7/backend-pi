@@ -43,14 +43,23 @@ export class DisponibilidadeProfessorService {
     console.log("🔧 [Service.create] DTO:", createDto)
     console.log("🔧 [Service.create] User context:", userContext)
 
-    this.logger.log(
-      `Criando disponibilidade para professor ${createDto.idUsuarioProfessor}`,
-    )
+    // Se o usuário é professor e não especificou um professor diferente,
+    // automaticamente usa seu próprio ID
+    let professorId = createDto.idUsuarioProfessor
+    if (userContext.papel === PapelUsuario.PROFESSOR) {
+      professorId = userContext.id
+      console.log(
+        "🔧 [Service.create] Professor criando para si mesmo, usando ID do contexto:",
+        professorId,
+      )
+    }
+
+    this.logger.log(`Criando disponibilidade para professor ${professorId}`)
 
     // Validar autorização - apenas o próprio professor ou admin pode criar
     console.log("🔧 [Service.create] Validando permissões...")
     try {
-      this.validateUserPermission(userContext, createDto.idUsuarioProfessor)
+      this.validateUserPermission(userContext, professorId)
       console.log("✅ [Service.create] Permissões OK")
     } catch (error) {
       console.error("❌ [Service.create] Erro de permissão:", error)
@@ -60,7 +69,7 @@ export class DisponibilidadeProfessorService {
     // Validar se o usuário é realmente um professor
     console.log("🔧 [Service.create] Validando se usuário é professor...")
     try {
-      await this.validateProfessorExists(createDto.idUsuarioProfessor)
+      await this.validateProfessorExists(professorId)
       console.log("✅ [Service.create] Professor validado")
     } catch (error) {
       console.error("❌ [Service.create] Erro na validação do professor:", error)
@@ -94,7 +103,7 @@ export class DisponibilidadeProfessorService {
     console.log("🔧 [Service.create] Verificando conflitos de horário...")
     try {
       await this.validateNoConflictingSchedule(
-        createDto.idUsuarioProfessor,
+        professorId,
         createDto.idPeriodoLetivo,
         createDto.diaDaSemana,
         createDto.horaInicio,
@@ -111,7 +120,7 @@ export class DisponibilidadeProfessorService {
     try {
       const disponibilidade = await this.prisma.disponibilidadeProfessor.create({
         data: {
-          idUsuarioProfessor: createDto.idUsuarioProfessor,
+          idUsuarioProfessor: professorId,
           idPeriodoLetivo: createDto.idPeriodoLetivo,
           diaDaSemana: createDto.diaDaSemana,
           horaInicio: createDto.horaInicio,
@@ -173,7 +182,6 @@ export class DisponibilidadeProfessorService {
           updateDto.diaDaSemana ?? existingDisponibilidade.diaDaSemana,
           horaInicio,
           horaFim,
-          id, // Excluir a própria disponibilidade da verificação
         )
       }
     }
@@ -201,7 +209,7 @@ export class DisponibilidadeProfessorService {
   async remove(
     id: string,
     userContext: { id: string; papel: PapelUsuario },
-  ): Promise<void> {
+  ): Promise<DisponibilidadeResponseDto> {
     this.logger.log(`Removendo disponibilidade ${id}`)
 
     // Buscar disponibilidade existente
@@ -219,6 +227,7 @@ export class DisponibilidadeProfessorService {
       })
 
       this.logger.log(`Disponibilidade removida com sucesso: ${id}`)
+      return existingDisponibilidade
     } catch (error) {
       this.logger.error("Erro ao remover disponibilidade", error)
       throw error
@@ -248,105 +257,55 @@ export class DisponibilidadeProfessorService {
   /**
    * Lista disponibilidades de um professor específico
    * @param professorId ID do professor
-   * @param query Parâmetros de filtro e paginação
+   * @param query Parâmetros de filtro
    * @returns Promise de array de disponibilidades
    */
   async findByProfessor(
     professorId: string,
     query: ListarDisponibilidadesQueryDto = {},
-  ): Promise<{
-    data: DisponibilidadeResponseDto[]
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-  }> {
-    const {
-      page = 1,
-      limit = 10,
-      orderBy = "diaDaSemana",
-      orderDirection = "asc",
-      ...filters
-    } = query
-
+  ): Promise<DisponibilidadeResponseDto[]> {
     const where: Prisma.DisponibilidadeProfessorWhereInput = {
       idUsuarioProfessor: professorId,
-      ...(filters.periodoLetivoId && {
-        idPeriodoLetivo: filters.periodoLetivoId,
+      ...(query.periodoLetivoId && {
+        idPeriodoLetivo: query.periodoLetivoId,
       }),
-      ...(filters.diaSemana && { diaDaSemana: filters.diaSemana }),
-      ...(filters.status && { status: filters.status }),
+      ...(query.diaSemana && { diaDaSemana: query.diaSemana }),
+      ...(query.status && { status: query.status }),
     }
 
-    const [disponibilidades, total] = await Promise.all([
-      this.prisma.disponibilidadeProfessor.findMany({
-        where,
-        include: this.getIncludeOptions(),
-        orderBy: { [orderBy]: orderDirection },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.disponibilidadeProfessor.count({ where }),
-    ])
+    const disponibilidades = await this.prisma.disponibilidadeProfessor.findMany({
+      where,
+      include: this.getIncludeOptions(), // Inclui as relações necessárias
+    })
 
-    return {
-      data: disponibilidades.map(this.mapToResponseDto),
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    }
+    return disponibilidades
+      .filter(d => d && d.usuarioProfessor && d.periodoLetivo)
+      .map(this.mapToResponseDto)
   }
 
   /**
    * Lista disponibilidades de um período letivo
    * @param periodoId ID do período letivo
-   * @param query Parâmetros de filtro e paginação
+   * @param query Parâmetros de filtro
    * @returns Promise de array de disponibilidades
    */
   async findByPeriodo(
     periodoId: string,
     query: ListarDisponibilidadesQueryDto = {},
-  ): Promise<{
-    data: DisponibilidadeResponseDto[]
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-  }> {
-    const {
-      page = 1,
-      limit = 10,
-      orderBy = "diaDaSemana",
-      orderDirection = "asc",
-      ...filters
-    } = query
-
+  ): Promise<DisponibilidadeResponseDto[]> {
     const where: Prisma.DisponibilidadeProfessorWhereInput = {
       idPeriodoLetivo: periodoId,
-      ...(filters.professorId && { idUsuarioProfessor: filters.professorId }),
-      ...(filters.diaSemana && { diaDaSemana: filters.diaSemana }),
-      ...(filters.status && { status: filters.status }),
+      ...(query.professorId && { idUsuarioProfessor: query.professorId }),
+      ...(query.diaSemana && { diaDaSemana: query.diaSemana }),
+      ...(query.status && { status: query.status }),
     }
 
-    const [disponibilidades, total] = await Promise.all([
-      this.prisma.disponibilidadeProfessor.findMany({
-        where,
-        include: this.getIncludeOptions(),
-        orderBy: { [orderBy]: orderDirection },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.disponibilidadeProfessor.count({ where }),
-    ])
+    const disponibilidades = await this.prisma.disponibilidadeProfessor.findMany({
+      where,
+      orderBy: { diaDaSemana: "asc" },
+    })
 
-    return {
-      data: disponibilidades.map(this.mapToResponseDto),
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    }
+    return disponibilidades.map(this.mapToResponseDto)
   }
 
   /**
@@ -464,7 +423,6 @@ export class DisponibilidadeProfessorService {
     diaSemana: any,
     horaInicio: string,
     horaFim: string,
-    excludeId?: string,
   ): Promise<void> {
     const conflictingSchedule =
       await this.prisma.disponibilidadeProfessor.findFirst({
@@ -472,7 +430,6 @@ export class DisponibilidadeProfessorService {
           idUsuarioProfessor: professorId,
           idPeriodoLetivo: periodoId,
           diaDaSemana: diaSemana,
-          ...(excludeId && { id: { not: excludeId } }),
           OR: [
             // Novo horário inicia durante um existente
             {
@@ -527,6 +484,15 @@ export class DisponibilidadeProfessorService {
    * Mapeia objeto Prisma para DTO de resposta
    */
   private mapToResponseDto(disponibilidade: any): DisponibilidadeResponseDto {
+    if (!disponibilidade) {
+      throw new Error('Disponibilidade indefinida ao mapear para DTO')
+    }
+    if (!disponibilidade.usuarioProfessor) {
+      throw new Error('usuarioProfessor indefinido ao mapear para DTO')
+    }
+    if (!disponibilidade.periodoLetivo) {
+      throw new Error('periodoLetivo indefinido ao mapear para DTO')
+    }
     return {
       id: disponibilidade.id,
       diaDaSemana: disponibilidade.diaDaSemana,

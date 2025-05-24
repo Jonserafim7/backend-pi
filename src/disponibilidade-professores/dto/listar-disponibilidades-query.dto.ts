@@ -64,27 +64,4 @@ export class ListarDisponibilidadesQueryDto {
   @IsOptional()
   @IsString()
   orderDirection?: "asc" | "desc" = "asc"
-
-  @ApiPropertyOptional({
-    description: "Página para paginação (começa em 1)",
-    example: 1,
-    minimum: 1,
-  })
-  @IsOptional()
-  @Transform(({ value }) => parseInt(value))
-  @IsInt({ message: "Página deve ser um número inteiro" })
-  @Min(1, { message: "Página deve ser maior que 0" })
-  page?: number = 1
-
-  @ApiPropertyOptional({
-    description: "Quantidade de itens por página",
-    example: 10,
-    minimum: 1,
-    maximum: 100,
-  })
-  @IsOptional()
-  @Transform(({ value }) => parseInt(value))
-  @IsInt({ message: "Limit deve ser um número inteiro" })
-  @Min(1, { message: "Limit deve ser maior que 0" })
-  limit?: number = 10
 }

@@ -70,32 +70,14 @@ export class DisponibilidadeProfessorController {
     description: "Disponibilidade criada com sucesso",
     type: DisponibilidadeResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: "Dados inválidos ou conflito de horário",
-  })
-  @ApiResponse({
-    status: 403,
-    description: "Sem permissão para criar disponibilidade para este professor",
-  })
-  @ApiResponse({
-    status: 404,
-    description: "Professor ou período letivo não encontrado",
-  })
   async create(
     @Body() createDto: CreateDisponibilidadeDto,
     @CurrentUser() user: UserContext,
   ): Promise<DisponibilidadeResponseDto> {
-    console.log("🎯 [Controller.create] Endpoint chamado!")
-    console.log("🎯 [Controller.create] DTO recebido:", createDto)
-    console.log("🎯 [Controller.create] Usuário:", user)
-
     try {
       const result = await this.disponibilidadeService.create(createDto, user)
-      console.log("✅ [Controller.create] Sucesso:", result)
       return result
     } catch (error) {
-      console.error("❌ [Controller.create] Erro:", error)
       throw error
     }
   }
@@ -135,30 +117,12 @@ export class DisponibilidadeProfessorController {
     required: false,
     description: "Filtrar por status",
   })
-  @ApiQuery({ name: "page", required: false, description: "Página (padrão: 1)" })
-  @ApiQuery({
-    name: "limit",
-    required: false,
-    description: "Itens por página (padrão: 10)",
-  })
   @ApiResponse({
     status: 200,
     description: "Lista de disponibilidades",
-    schema: {
-      type: "object",
-      properties: {
-        data: {
-          type: "array",
-          items: { $ref: "#/components/schemas/DisponibilidadeResponseDto" },
-        },
-        total: { type: "number" },
-        page: { type: "number" },
-        limit: { type: "number" },
-        totalPages: { type: "number" },
-      },
-    },
+    type: [DisponibilidadeResponseDto],
   })
-  async findAll(
+  findAll(
     @Query() query: ListarDisponibilidadesQueryDto,
     @CurrentUser() user: UserContext,
   ) {
@@ -168,6 +132,7 @@ export class DisponibilidadeProfessorController {
       ...(user.papel === PapelUsuario.PROFESSOR && { professorId: user.id }),
     }
 
+    // Se tem professorId, busca por professor
     if (finalQuery.professorId) {
       return this.disponibilidadeService.findByProfessor(
         finalQuery.professorId,
@@ -175,6 +140,7 @@ export class DisponibilidadeProfessorController {
       )
     }
 
+    // Se tem periodoLetivoId, busca por periodo
     if (finalQuery.periodoLetivoId) {
       return this.disponibilidadeService.findByPeriodo(
         finalQuery.periodoLetivoId,
@@ -187,9 +153,8 @@ export class DisponibilidadeProfessorController {
       return this.disponibilidadeService.findByProfessor(user.id, finalQuery)
     }
 
-    // Para outros papéis sem filtros específicos, retorna todas com paginação básica
-    // TODO: Implementar busca genérica ou buscar por período ativo
-    return this.disponibilidadeService.findByProfessor("", finalQuery) // Temporário
+    // Para outros papéis sem filtros específicos, retorna todas
+    return this.disponibilidadeService.findByProfessor("", finalQuery)
   }
 
   /**
@@ -212,11 +177,7 @@ export class DisponibilidadeProfessorController {
     description: "Disponibilidade encontrada",
     type: DisponibilidadeResponseDto,
   })
-  @ApiResponse({
-    status: 404,
-    description: "Disponibilidade não encontrada",
-  })
-  async findOne(
+  findOne(
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<DisponibilidadeResponseDto> {
     return this.disponibilidadeService.findById(id)
@@ -240,8 +201,9 @@ export class DisponibilidadeProfessorController {
   @ApiResponse({
     status: 200,
     description: "Lista de disponibilidades do professor",
+    type: [DisponibilidadeResponseDto],
   })
-  async findByProfessor(
+  findByProfessor(
     @Param("professorId", ParseUUIDPipe) professorId: string,
     @Query() query: ListarDisponibilidadesQueryDto,
     @CurrentUser() user: UserContext,
@@ -268,8 +230,9 @@ export class DisponibilidadeProfessorController {
   @ApiResponse({
     status: 200,
     description: "Lista de disponibilidades do período",
+    type: [DisponibilidadeResponseDto],
   })
-  async findByPeriodo(
+  findByPeriodo(
     @Param("periodoId", ParseUUIDPipe) periodoId: string,
     @Query() query: ListarDisponibilidadesQueryDto,
   ) {
@@ -298,7 +261,7 @@ export class DisponibilidadeProfessorController {
     description: "Lista de disponibilidades do professor no período",
     type: [DisponibilidadeResponseDto],
   })
-  async findByProfessorAndPeriodo(
+  findByProfessorAndPeriodo(
     @Param("professorId", ParseUUIDPipe) professorId: string,
     @Param("periodoId", ParseUUIDPipe) periodoId: string,
     @Query()
@@ -336,19 +299,7 @@ export class DisponibilidadeProfessorController {
     description: "Disponibilidade atualizada com sucesso",
     type: DisponibilidadeResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: "Dados inválidos ou conflito de horário",
-  })
-  @ApiResponse({
-    status: 403,
-    description: "Sem permissão para atualizar esta disponibilidade",
-  })
-  @ApiResponse({
-    status: 404,
-    description: "Disponibilidade não encontrada",
-  })
-  async update(
+  update(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateDisponibilidadeDto,
     @CurrentUser() user: UserContext,
@@ -360,30 +311,22 @@ export class DisponibilidadeProfessorController {
    * Remover disponibilidade
    */
   @Delete(":id")
-  @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(PapelUsuario.PROFESSOR, PapelUsuario.ADMIN, PapelUsuario.DIRETOR)
   @ApiOperation({
     summary: "Remover disponibilidade",
     description:
       "Remove uma disponibilidade existente. Apenas o próprio professor, admin ou diretor podem remover.",
   })
-  @ApiParam({ name: "id", description: "ID da disponibilidade" })
   @ApiResponse({
-    status: 204,
+    status: 200,
     description: "Disponibilidade removida com sucesso",
+    type: DisponibilidadeResponseDto,
   })
-  @ApiResponse({
-    status: 403,
-    description: "Sem permissão para remover esta disponibilidade",
-  })
-  @ApiResponse({
-    status: 404,
-    description: "Disponibilidade não encontrada",
-  })
-  async remove(
+  @ApiParam({ name: "id", description: "ID da disponibilidade" })
+  remove(
     @Param("id", ParseUUIDPipe) id: string,
     @CurrentUser() user: UserContext,
-  ): Promise<void> {
+  ): Promise<DisponibilidadeResponseDto> {
     return this.disponibilidadeService.remove(id, user)
   }
 }

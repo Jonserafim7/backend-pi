@@ -308,6 +308,45 @@ export class DisponibilidadeProfessorController {
   }
 
   /**
+   * Buscar slots válidos para um período letivo
+   */
+  @Get("slots-validos/:periodoId")
+  @Roles(
+    PapelUsuario.PROFESSOR,
+    PapelUsuario.COORDENADOR,
+    PapelUsuario.ADMIN,
+    PapelUsuario.DIRETOR,
+  )
+  @ApiOperation({
+    summary: "Buscar slots válidos",
+    description:
+      "Retorna os slots de horário válidos configurados para o período letivo",
+  })
+  @ApiParam({ name: "periodoId", description: "ID do período letivo" })
+  @ApiResponse({
+    status: 200,
+    description: "Slots válidos encontrados",
+    schema: {
+      type: "object",
+      properties: {
+        slots: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              inicio: { type: "string", example: "07:30" },
+              fim: { type: "string", example: "08:20" },
+            },
+          },
+        },
+      },
+    },
+  })
+  async getSlotsValidos(@Param("periodoId", ParseUUIDPipe) periodoId: string) {
+    return this.disponibilidadeService.getSlotsValidosPorPeriodo(periodoId)
+  }
+
+  /**
    * Remover disponibilidade
    */
   @Delete(":id")

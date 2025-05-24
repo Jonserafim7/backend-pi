@@ -6,11 +6,13 @@ import {
   Logger,
 } from "@nestjs/common"
 import { PrismaService } from "../core/prisma/prisma.service"
+import { ConfiguracoesHorarioService } from "../configuracoes-horario/configuracoes-horario.service"
 import {
   PapelUsuario,
   StatusPeriodoLetivo,
   StatusDisponibilidade,
   Prisma,
+  DiaSemana,
 } from "@prisma/client"
 import {
   CreateDisponibilidadeDto,
@@ -27,7 +29,10 @@ import {
 export class DisponibilidadeProfessorService {
   private readonly logger = new Logger(DisponibilidadeProfessorService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configuracoesService: ConfiguracoesHorarioService,
+  ) {}
 
   /**
    * Cria uma nova disponibilidade para um professor
@@ -96,6 +101,25 @@ export class DisponibilidadeProfessorService {
       console.log("✅ [Service.create] Horários validados")
     } catch (error) {
       console.error("❌ [Service.create] Erro na validação de horários:", error)
+      throw error
+    }
+
+    // 🚨 NOVA VALIDAÇÃO CRÍTICA: Verificar se horário está nos slots configurados
+    console.log(
+      "🔧 [Service.create] Validando contra configurações de horário...",
+    )
+    try {
+      await this.validateHorarioContraConfiguracoes(
+        createDto.horaInicio,
+        createDto.horaFim,
+        createDto.diaDaSemana,
+      )
+      console.log("✅ [Service.create] Horário validado contra configurações")
+    } catch (error) {
+      console.error(
+        "❌ [Service.create] Erro na validação contra configurações:",
+        error,
+      )
       throw error
     }
 
@@ -168,22 +192,30 @@ export class DisponibilidadeProfessorService {
     )
 
     // Validar horários se foram fornecidos
-    if (updateDto.horaInicio || updateDto.horaFim) {
+    if (updateDto.horaInicio || updateDto.horaFim || updateDto.diaDaSemana) {
       const horaInicio =
         updateDto.horaInicio ?? existingDisponibilidade.horaInicio
       const horaFim = updateDto.horaFim ?? existingDisponibilidade.horaFim
+      const diaDaSemana =
+        updateDto.diaDaSemana ?? existingDisponibilidade.diaDaSemana
+
       this.validateHorarios(horaInicio, horaFim)
 
+      // 🚨 NOVA VALIDAÇÃO CRÍTICA: Verificar se horário está nos slots configurados
+      await this.validateHorarioContraConfiguracoes(
+        horaInicio,
+        horaFim,
+        diaDaSemana,
+      )
+
       // Verificar conflitos apenas se horários ou dia da semana mudaram
-      if (updateDto.horaInicio || updateDto.horaFim || updateDto.diaDaSemana) {
-        await this.validateNoConflictingSchedule(
-          existingDisponibilidade.usuarioProfessor.id,
-          existingDisponibilidade.periodoLetivo.id,
-          updateDto.diaDaSemana ?? existingDisponibilidade.diaDaSemana,
-          horaInicio,
-          horaFim,
-        )
-      }
+      await this.validateNoConflictingSchedule(
+        existingDisponibilidade.usuarioProfessor.id,
+        existingDisponibilidade.periodoLetivo.id,
+        diaDaSemana,
+        horaInicio,
+        horaFim,
+      )
     }
 
     try {
@@ -279,7 +311,7 @@ export class DisponibilidadeProfessorService {
     })
 
     return disponibilidades
-      .filter(d => d && d.usuarioProfessor && d.periodoLetivo)
+      .filter((d) => d && d.usuarioProfessor && d.periodoLetivo)
       .map(this.mapToResponseDto)
   }
 
@@ -337,6 +369,29 @@ export class DisponibilidadeProfessorService {
     })
 
     return disponibilidades.map(this.mapToResponseDto)
+  }
+
+  /**
+   * Retorna slots válidos para um período letivo (baseado nas configurações)
+   * @param periodoId ID do período letivo
+   * @returns Promise com array de slots válidos
+   */
+  async getSlotsValidosPorPeriodo(periodoId: string): Promise<{
+    slots: { inicio: string; fim: string }[]
+  }> {
+    // Validar se período existe
+    await this.validatePeriodoLetivoAtivo(periodoId)
+
+    // Buscar configuração ativa
+    const config = await this.configuracoesService.get()
+    if (!config) {
+      throw new BadRequestException("Configurações de horário não encontradas")
+    }
+
+    // Extrair todos os slots disponíveis (usa SEGUNDA como referência, pois são iguais para todos os dias)
+    const slots = this.extrairSlotsParaDia(config, DiaSemana.SEGUNDA)
+
+    return { slots }
   }
 
   // ===== MÉTODOS PRIVADOS DE VALIDAÇÃO =====
@@ -415,6 +470,126 @@ export class DisponibilidadeProfessorService {
   }
 
   /**
+   * 🚨 VALIDAÇÃO CRÍTICA: Verifica se o horário informado está nos slots configurados
+   * Esta é a correção do problema fundamental do sistema
+   */
+  private async validateHorarioContraConfiguracoes(
+    horaInicio: string,
+    horaFim: string,
+    diaDaSemana: DiaSemana,
+  ): Promise<void> {
+    // Buscar configuração ativa
+    const config = await this.configuracoesService.get()
+    if (!config) {
+      throw new BadRequestException("Configurações de horário não encontradas")
+    }
+
+    // Extrair slots para o dia específico
+    const slotsValidos = this.extrairSlotsParaDia(config, diaDaSemana)
+
+    if (slotsValidos.length === 0) {
+      throw new BadRequestException(
+        `Não há slots configurados para ${diaDaSemana.toLowerCase()}`,
+      )
+    }
+
+    // Validar se horário informado está dentro de algum slot válido
+    const horarioValido = this.validarHorarioEmSlots(
+      horaInicio,
+      horaFim,
+      slotsValidos,
+    )
+
+    if (!horarioValido) {
+      const slotsDisponiveis = slotsValidos
+        .map((slot) => `${slot.inicio}-${slot.fim}`)
+        .join(", ")
+
+      throw new BadRequestException(
+        `Horário ${horaInicio}-${horaFim} não está nos slots válidos para ${diaDaSemana.toLowerCase()}: ${slotsDisponiveis}`,
+      )
+    }
+  }
+
+  /**
+   * Extrai slots de aula para um dia específico da semana
+   * Utiliza a estrutura otimizada do ConfiguracoesHorarioService
+   */
+  private extrairSlotsParaDia(
+    config: any,
+    dia: DiaSemana,
+  ): { inicio: string; fim: string }[] {
+    const slots: { inicio: string; fim: string }[] = []
+
+    // A configuração já vem com as aulas calculadas para cada turno
+    // Todos os dias da semana usam os mesmos horários (manhã, tarde, noite)
+
+    // Adicionar slots do turno da manhã
+    if (config.aulasTurnoManha && Array.isArray(config.aulasTurnoManha)) {
+      config.aulasTurnoManha.forEach((aula: any) => {
+        slots.push({
+          inicio: aula.inicio,
+          fim: aula.fim,
+        })
+      })
+    }
+
+    // Adicionar slots do turno da tarde
+    if (config.aulasTurnoTarde && Array.isArray(config.aulasTurnoTarde)) {
+      config.aulasTurnoTarde.forEach((aula: any) => {
+        slots.push({
+          inicio: aula.inicio,
+          fim: aula.fim,
+        })
+      })
+    }
+
+    // Adicionar slots do turno da noite
+    if (config.aulasTurnoNoite && Array.isArray(config.aulasTurnoNoite)) {
+      config.aulasTurnoNoite.forEach((aula: any) => {
+        slots.push({
+          inicio: aula.inicio,
+          fim: aula.fim,
+        })
+      })
+    }
+
+    return slots
+  }
+
+  /**
+   * Verifica se horário informado está dentro dos slots válidos
+   */
+  private validarHorarioEmSlots(
+    horaInicio: string,
+    horaFim: string,
+    slots: { inicio: string; fim: string }[],
+  ): boolean {
+    const [horaIni, minIni] = horaInicio.split(":").map(Number)
+    const [horaFin, minFin] = horaFim.split(":").map(Number)
+
+    const inicioMinutos = horaIni * 60 + minIni
+    const fimMinutos = horaFin * 60 + minFin
+
+    // Verificar se o horário informado está completamente dentro de algum slot ou conjunto de slots consecutivos
+    for (const slot of slots) {
+      const [slotIniH, slotIniM] = slot.inicio.split(":").map(Number)
+      const [slotFimH, slotFimM] = slot.fim.split(":").map(Number)
+
+      const slotInicioMinutos = slotIniH * 60 + slotIniM
+      const slotFimMinutos = slotFimH * 60 + slotFimM
+
+      // Verifica se o horário informado está completamente dentro de um slot
+      if (inicioMinutos >= slotInicioMinutos && fimMinutos <= slotFimMinutos) {
+        return true
+      }
+    }
+
+    // TODO: Implementar validação para slots consecutivos (professor pode estar disponível em 2+ slots seguidos)
+    return false
+  }
+
+  /**
    * Valida se não há conflitos de horário para o mesmo professor
    */
   private async validateNoConflictingSchedule(
@@ -485,13 +660,13 @@ export class DisponibilidadeProfessorService {
    */
   private mapToResponseDto(disponibilidade: any): DisponibilidadeResponseDto {
     if (!disponibilidade) {
-      throw new Error('Disponibilidade indefinida ao mapear para DTO')
+      throw new Error("Disponibilidade indefinida ao mapear para DTO")
     }
     if (!disponibilidade.usuarioProfessor) {
-      throw new Error('usuarioProfessor indefinido ao mapear para DTO')
+      throw new Error("usuarioProfessor indefinido ao mapear para DTO")
     }
     if (!disponibilidade.periodoLetivo) {
-      throw new Error('periodoLetivo indefinido ao mapear para DTO')
+      throw new Error("periodoLetivo indefinido ao mapear para DTO")
     }
     return {
       id: disponibilidade.id,

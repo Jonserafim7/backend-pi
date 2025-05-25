@@ -334,10 +334,13 @@ export class DisponibilidadeProfessorService {
 
     const disponibilidades = await this.prisma.disponibilidadeProfessor.findMany({
       where,
+      include: this.getIncludeOptions(), // Inclui as relações necessárias
       orderBy: { diaDaSemana: "asc" },
     })
 
-    return disponibilidades.map(this.mapToResponseDto)
+    return disponibilidades
+      .filter((d) => d && d.usuarioProfessor && d.periodoLetivo)
+      .map(this.mapToResponseDto)
   }
 
   /**

@@ -7,5 +7,6 @@ import { PrismaModule } from "../core/prisma/prisma.module"
   imports: [PrismaModule],
   controllers: [ConfiguracoesHorarioController],
   providers: [ConfiguracoesHorarioService],
+  exports: [ConfiguracoesHorarioService],
 })
 export class ConfiguracoesHorarioModule {}

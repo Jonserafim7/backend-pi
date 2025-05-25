@@ -6,5 +6,5 @@ import { JwtPayload } from "../jwt.strategy"
  * para incluir o usuário autenticado
  */
 export interface RequestWithUser extends Request {
-  user: JwtPayload
+  user: Omit<JwtPayload, "sub"> & { id: string }
 }

@@ -27,7 +27,8 @@ import { RequestWithUser } from "../auth/interfaces/request-with-user.interface"
 
 /**
  * Controller responsável pelos endpoints de configurações de horário.
- * Acesso restrito a Diretores.
+ * GET: Diretores e Professores podem acessar.
+ * PUT: Acesso restrito a Diretores.
  */
 @ApiTags("Configurações de Horário")
 @ApiBearerAuth()
@@ -42,14 +43,14 @@ export class ConfiguracoesHorarioController {
 
   /**
    * Obtém a configuração de horário global.
-   * Apenas Diretores podem acessar este endpoint.
+   * Diretores e Professores podem acessar este endpoint.
    * @param req Objeto da requisição, usado para logging.
    * @returns A configuração de horário global.
    * @throws NotFoundException se nenhuma configuração for encontrada.
-   * @throws ForbiddenException se o usuário não for Diretor.
+   * @throws ForbiddenException se o usuário não for Diretor ou Professor.
    */
   @Get()
-  @Roles(PapelUsuario.DIRETOR)
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.PROFESSOR)
   @ApiOperation({ summary: "Obtém a configuração de horário global" })
   @ApiResponse({
     status: HttpStatus.OK,

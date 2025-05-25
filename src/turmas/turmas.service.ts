@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  BadRequestException,
 } from "@nestjs/common"
 import { PrismaService } from "../core/prisma/prisma.service"
 import { CreateTurmaDto } from "./dto/create-turma.dto"
@@ -60,7 +61,6 @@ export class TurmasService {
       try {
         const result = await this.prisma.turma.createMany({
           data: turmasCriadasData,
-          skipDuplicates: true as never,
         })
         this.logger.log(
           `${result.count} turmas criadas com sucesso via createMany.`,
@@ -164,7 +164,6 @@ export class TurmasService {
         try {
           const result = await this.prisma.turma.createMany({
             data: operacoesCriacao,
-            skipDuplicates: true as never,
           })
           this.logger.log(
             `${result.count} turmas adicionais criadas com sucesso.`,
@@ -226,6 +225,18 @@ export class TurmasService {
       )
     }
 
+    // NOVA VALIDAÇÃO: Verificar limite de turmas por oferta
+    const turmasExistentes = await this.prisma.turma.count({
+      where: { idDisciplinaOfertada: createTurmaDto.idDisciplinaOfertada },
+    })
+
+    if (turmasExistentes >= disciplinaOfertada.quantidadeTurmas) {
+      throw new BadRequestException(
+        `Esta disciplina ofertada já atingiu o limite máximo de ${disciplinaOfertada.quantidadeTurmas} turma(s). ` +
+          `Atualmente existem ${turmasExistentes} turma(s) criadas.`,
+      )
+    }
+
     // Verificar se o código da turma já existe para esta oferta
     const turmaExistente = await this.prisma.turma.findFirst({
       where: {
@@ -235,7 +246,7 @@ export class TurmasService {
     })
 
     if (turmaExistente) {
-      throw new Error(
+      throw new BadRequestException(
         `Já existe uma turma com código "${createTurmaDto.codigoDaTurma}" para esta disciplina ofertada.`,
       )
     }
@@ -422,13 +433,18 @@ export class TurmasService {
     // Verificar se a turma existe
     const turma = await this.prisma.turma.findUnique({
       where: { id },
+      include: {
+        disciplinaOfertada: {
+          include: { disciplina: true, periodoLetivo: true },
+        },
+      },
     })
 
     if (!turma) {
       throw new NotFoundException(`Turma com ID "${id}" não encontrada.`)
     }
 
-    // Verificar se o professor existe
+    // Verificar se o professor existe e é realmente professor
     const professor = await this.prisma.usuario.findUnique({
       where: { id: idProfessor },
     })
@@ -437,6 +453,58 @@ export class TurmasService {
       throw new NotFoundException(
         `Professor com ID "${idProfessor}" não encontrado.`,
       )
+    }
+
+    if (professor.papel !== "PROFESSOR") {
+      throw new BadRequestException(
+        "O usuário selecionado não possui papel de professor.",
+      )
+    }
+
+    // NOVA VALIDAÇÃO 1: Verificar se professor tem disponibilidade no período
+    const temDisponibilidade =
+      await this.prisma.disponibilidadeProfessor.findFirst({
+        where: {
+          idUsuarioProfessor: idProfessor,
+          idPeriodoLetivo: turma.disciplinaOfertada.idPeriodoLetivo,
+          status: "DISPONIVEL",
+        },
+      })
+
+    if (!temDisponibilidade) {
+      throw new BadRequestException(
+        `Professor "${professor.nome}" não possui disponibilidade cadastrada para o período ${turma.disciplinaOfertada.periodoLetivo.ano}/${turma.disciplinaOfertada.periodoLetivo.semestre}º semestre.`,
+      )
+    }
+
+    // NOVA VALIDAÇÃO 2: Verificar se professor já não está sobrecarregado no período
+    const turmasDoFuturo = await this.prisma.turma.count({
+      where: {
+        idUsuarioProfessor: idProfessor,
+        disciplinaOfertada: {
+          idPeriodoLetivo: turma.disciplinaOfertada.idPeriodoLetivo,
+        },
+      },
+    })
+
+    const LIMITE_TURMAS_POR_PERIODO = 6 // Configurável
+    if (turmasDoFuturo >= LIMITE_TURMAS_POR_PERIODO) {
+      throw new BadRequestException(
+        `Professor "${professor.nome}" já possui ${turmasDoFuturo} turmas neste período. Limite máximo: ${LIMITE_TURMAS_POR_PERIODO} turmas.`,
+      )
+    }
+
+    // NOVA VALIDAÇÃO 3: Verificar se turma já tem professor
+    if (turma.idUsuarioProfessor) {
+      const professorAtual = await this.prisma.usuario.findUnique({
+        where: { id: turma.idUsuarioProfessor },
+      })
+
+      if (professorAtual && professorAtual.id === idProfessor) {
+        throw new BadRequestException(
+          `Professor "${professor.nome}" já está atribuído a esta turma.`,
+        )
+      }
     }
 
     const turmaAtualizada = await this.prisma.turma.update({
@@ -449,6 +517,10 @@ export class TurmasService {
         professorAlocado: true,
       },
     })
+
+    this.logger.log(
+      `Professor "${professor.nome}" atribuído à turma "${turma.codigoDaTurma}" da disciplina "${turma.disciplinaOfertada.disciplina.nome}"`,
+    )
 
     return this.mapToResponseDto(turmaAtualizada)
   }
@@ -541,6 +613,19 @@ export class TurmasService {
             updatedAt: turma.disciplinaOfertada.dataAtualizacao,
           }
         : undefined,
+      // CORREÇÃO: Mapear informações do professor
+      idUsuarioProfessor: turma.idUsuarioProfessor,
+      professorAlocado:
+        turma.professorAlocado ?
+          {
+            id: turma.professorAlocado.id,
+            nome: turma.professorAlocado.nome,
+            email: turma.professorAlocado.email,
+            papel: turma.professorAlocado.papel,
+            dataCriacao: turma.professorAlocado.dataCriacao,
+            dataAtualizacao: turma.professorAlocado.dataAtualizacao,
+          }
+        : null,
       dataCriacao: turma.dataCriacao,
       dataAtualizacao: turma.dataAtualizacao,
     }

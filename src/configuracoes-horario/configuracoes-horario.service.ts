@@ -17,6 +17,10 @@ interface AulaCalculada {
 export class ConfiguracoesHorarioService {
   private readonly logger = new Logger(ConfiguracoesHorarioService.name)
 
+  // 🚀 SOLUÇÃO SIMPLES: Cache de 1 variável!
+  private ultimaConfiguracaoCalculada: ConfiguracaoHorarioDto | null = null
+  private ultimoIdCalculado: string | null = null
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -118,6 +122,23 @@ export class ConfiguracoesHorarioService {
         this.logger.log("Nenhuma configuração de horário encontrada.")
         return null
       }
+
+      // 🚀 CACHE SIMPLES: Se já calculamos essa configuração, retorna direto
+      if (
+        this.ultimoIdCalculado === configPrisma.id &&
+        this.ultimaConfiguracaoCalculada
+      ) {
+        this.logger.log(
+          `✅ Cache HIT - Retornando configuração já calculada para ID ${configPrisma.id}`,
+        )
+        return this.ultimaConfiguracaoCalculada
+      }
+
+      // Cache MISS - precisa calcular
+      this.logger.log(
+        `⚠️ Cache MISS - Calculando configuração para ID ${configPrisma.id}`,
+      )
+
       this.logger.log(
         `Configuração Prisma encontrada: ${JSON.stringify(configPrisma)}`,
       )
@@ -149,6 +170,13 @@ export class ConfiguracoesHorarioService {
         aulasTurnoTarde: tarde.aulas,
         aulasTurnoNoite: noite.aulas,
       }
+
+      // 🚀 SALVAR NO CACHE SIMPLES
+      this.ultimaConfiguracaoCalculada = configDto
+      this.ultimoIdCalculado = configPrisma.id
+      this.logger.log(
+        `✅ Configuração calculada e salva no cache para ID ${configPrisma.id}`,
+      )
 
       this.logger.log(
         `Configuração DTO com cálculos: ${JSON.stringify(configDto)}`,
@@ -201,6 +229,8 @@ export class ConfiguracoesHorarioService {
     try {
       const existingConfig = await this.prisma.configuracaoHorario.findFirst()
 
+      let result: ConfiguracaoHorarioPrisma
+
       if (existingConfig) {
         this.logger.log(
           `Configuração existente encontrada (ID: ${existingConfig.id}). Atualizando com DTO: ${JSON.stringify(dto)}`,
@@ -234,7 +264,7 @@ export class ConfiguracoesHorarioService {
         this.logger.log(
           `Configuração atualizada com sucesso: ${JSON.stringify(updatedConfig)}`,
         )
-        return updatedConfig
+        result = updatedConfig
       } else {
         this.logger.log("Nenhuma configuração existente. Tentando criar nova...")
         // Para criar uma nova, todos os campos são necessários
@@ -267,8 +297,15 @@ export class ConfiguracoesHorarioService {
         this.logger.log(
           `Configuração criada com sucesso: ${JSON.stringify(createdConfig)}`,
         )
-        return createdConfig
+        result = createdConfig
       }
+
+      // 🚀 LIMPAR CACHE SIMPLES quando configuração muda
+      this.ultimaConfiguracaoCalculada = null
+      this.ultimoIdCalculado = null
+      this.logger.log(`🗑️ Cache limpo após alteração na configuração`)
+
+      return result
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Erro desconhecido"

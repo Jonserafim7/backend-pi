@@ -30,7 +30,8 @@ export class DisciplinasOfertadasService {
 
   async create(
     createDisciplinaOfertadaDto: CreateDisciplinaOfertadaDto,
-    coordenadorId: string, // Changed to string
+    userId: string,
+    userRole?: string, // Adicionar papel do usuário
   ): Promise<DisciplinaOfertadaResponseDto> {
     const { idDisciplina, idPeriodoLetivo, quantidadeTurmas } =
       createDisciplinaOfertadaDto
@@ -62,48 +63,52 @@ export class DisciplinasOfertadasService {
       )
     }
 
-    // 3. Authorization: Validar que a disciplina pertence a uma matriz de um curso que o coordenador logado coordena
-    const cursosCoordenados = await this.prisma.curso.findMany({
-      where: { idCoordenador: coordenadorId },
-      select: { id: true },
-    })
-    if (!cursosCoordenados || cursosCoordenados.length === 0) {
-      throw new ForbiddenException(
-        "Você não coordena nenhum curso para ofertar disciplinas.",
-      )
-    }
-    const idsCursosCoordenados = cursosCoordenados.map((c) => c.id)
-
-    const matrizesDosCursosCoordenados =
-      await this.prisma.matrizCurricular.findMany({
-        where: { idCurso: { in: idsCursosCoordenados } },
+    // 3. Authorization: Para COORDENADOR, validar que a disciplina pertence a uma matriz de um curso que coordena
+    // Para ADMIN e DIRETOR, permitir acesso total
+    if (userRole === "COORDENADOR") {
+      const cursosCoordenados = await this.prisma.curso.findMany({
+        where: { idCoordenador: userId },
         select: { id: true },
       })
-    if (
-      !matrizesDosCursosCoordenados ||
-      matrizesDosCursosCoordenados.length === 0
-    ) {
-      throw new ForbiddenException(
-        "Nenhuma matriz curricular encontrada para os cursos que você coordena.",
-      )
-    }
-    const idsMatrizesDosCursosCoordenados = matrizesDosCursosCoordenados.map(
-      (m) => m.id,
-    )
+      if (!cursosCoordenados || cursosCoordenados.length === 0) {
+        throw new ForbiddenException(
+          "Você não coordena nenhum curso para ofertar disciplinas.",
+        )
+      }
+      const idsCursosCoordenados = cursosCoordenados.map((c) => c.id)
 
-    const disciplinaNaMatrizCoordenada =
-      await this.prisma.matrizDisciplina.findFirst({
-        where: {
-          idMatrizCurricular: { in: idsMatrizesDosCursosCoordenados },
-          idDisciplina: idDisciplina,
-        },
-      })
-
-    if (!disciplinaNaMatrizCoordenada) {
-      throw new ForbiddenException(
-        `A disciplina "${disciplina.nome}" não pertence a nenhuma matriz curricular dos cursos que você coordena.`,
+      const matrizesDosCursosCoordenados =
+        await this.prisma.matrizCurricular.findMany({
+          where: { idCurso: { in: idsCursosCoordenados } },
+          select: { id: true },
+        })
+      if (
+        !matrizesDosCursosCoordenados ||
+        matrizesDosCursosCoordenados.length === 0
+      ) {
+        throw new ForbiddenException(
+          "Nenhuma matriz curricular encontrada para os cursos que você coordena.",
+        )
+      }
+      const idsMatrizesDosCursosCoordenados = matrizesDosCursosCoordenados.map(
+        (m) => m.id,
       )
+
+      const disciplinaNaMatrizCoordenada =
+        await this.prisma.matrizDisciplina.findFirst({
+          where: {
+            idMatrizCurricular: { in: idsMatrizesDosCursosCoordenados },
+            idDisciplina: idDisciplina,
+          },
+        })
+
+      if (!disciplinaNaMatrizCoordenada) {
+        throw new ForbiddenException(
+          `A disciplina "${disciplina.nome}" não pertence a nenhuma matriz curricular dos cursos que você coordena.`,
+        )
+      }
     }
+    // ADMIN e DIRETOR podem ofertar qualquer disciplina
 
     // 4. Validar que a disciplina não foi ofertada no mesmo período letivo
     const existingOferta = await this.prisma.disciplinaOfertada.findFirst({
@@ -125,7 +130,7 @@ export class DisciplinasOfertadasService {
         disciplina: { connect: { id: idDisciplina } },
         periodoLetivo: { connect: { id: idPeriodoLetivo } },
         quantidadeTurmas,
-        coordenadorQueOfertou: { connect: { id: coordenadorId } }, // This confirms the creator
+        coordenadorQueOfertou: { connect: { id: userId } },
       },
       include: {
         disciplina: true,
@@ -298,10 +303,9 @@ export class DisciplinasOfertadasService {
     id: string,
     updateDisciplinaOfertadaDto: UpdateDisciplinaOfertadaDto,
     solicitanteId: string,
+    userRole?: string, // Adicionar papel do usuário
   ): Promise<DisciplinaOfertadaResponseDto> {
     console.log("Update ID (service):", id, "DTO:", updateDisciplinaOfertadaDto)
-    // TODO: Validar se o coordenador é o responsável pela oferta antes de atualizar
-    // TODO: Implementar lógica para lidar com a atualização da quantidade de turmas (e.g., criar/remover turmas associadas)
 
     // First, check if the disciplinaOfertada exists
     const existingOferta = await this.prisma.disciplinaOfertada.findUnique({
@@ -314,8 +318,12 @@ export class DisciplinasOfertadasService {
       )
     }
 
-    // Authorization check
-    if (existingOferta.idCoordenador !== solicitanteId) {
+    // Authorization check: ADMIN e DIRETOR podem atualizar qualquer oferta
+    // COORDENADOR só pode atualizar ofertas que criou
+    if (
+      userRole === "COORDENADOR" &&
+      existingOferta.idCoordenador !== solicitanteId
+    ) {
       throw new ForbiddenException(
         "Você não tem permissão para atualizar esta oferta de disciplina.",
       )
@@ -432,10 +440,12 @@ export class DisciplinasOfertadasService {
     }
   }
 
-  async remove(id: string, solicitanteId: string): Promise<void> {
+  async remove(
+    id: string,
+    solicitanteId: string,
+    userRole?: string, // Adicionar papel do usuário
+  ): Promise<void> {
     console.log("Remove ID (service):", id)
-    // TODO: Validar se o coordenador é o responsável pela oferta antes de remover
-    // TODO: Verificar dependências com turmas (e.g., se existem turmas com alocações, impedir remoção ou tratar)
 
     const existingOferta = await this.prisma.disciplinaOfertada.findUnique({
       where: { id },
@@ -447,8 +457,12 @@ export class DisciplinasOfertadasService {
       )
     }
 
-    // Authorization check
-    if (existingOferta.idCoordenador !== solicitanteId) {
+    // Authorization check: ADMIN e DIRETOR podem remover qualquer oferta
+    // COORDENADOR só pode remover ofertas que criou
+    if (
+      userRole === "COORDENADOR" &&
+      existingOferta.idCoordenador !== solicitanteId
+    ) {
       throw new ForbiddenException(
         "Você não tem permissão para remover esta oferta de disciplina.",
       )

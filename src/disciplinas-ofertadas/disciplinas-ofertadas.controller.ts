@@ -27,6 +27,8 @@ import {
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"
 import { PapelUsuario } from "@prisma/client"
 import { RequestWithUser } from "../auth/interfaces/request-with-user.interface"
+import { RolesGuard } from "../auth/guards/roles.guard"
+import { Roles } from "../auth/decorators/roles.decorator"
 
 interface FindAllDisciplinasOfertadasFilters {
   periodoId?: string
@@ -34,7 +36,8 @@ interface FindAllDisciplinasOfertadasFilters {
 }
 
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(PapelUsuario.COORDENADOR, PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
 @ApiTags("Disciplinas Ofertadas")
 @Controller("disciplinas-ofertadas")
 export class DisciplinasOfertadasController {
@@ -43,7 +46,9 @@ export class DisciplinasOfertadasController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: "Criar uma nova oferta de disciplina (Coordenador)" })
+  @ApiOperation({
+    summary: "Criar uma nova oferta de disciplina (Admin, Diretor, Coordenador)",
+  })
   @ApiResponse({
     status: 201,
     description: "A oferta da disciplina foi criada com sucesso.",
@@ -56,21 +61,28 @@ export class DisciplinasOfertadasController {
     @Req() request: RequestWithUser,
   ): Promise<DisciplinaOfertadaResponseDto> {
     const user = request.user
-    if (user.papel !== PapelUsuario.COORDENADOR) {
+
+    // Permitir ADMIN, DIRETOR e COORDENADOR
+    if (
+      user.papel !== PapelUsuario.ADMIN &&
+      user.papel !== PapelUsuario.DIRETOR &&
+      user.papel !== PapelUsuario.COORDENADOR
+    ) {
       throw new ForbiddenException(
-        "Apenas coordenadores podem criar ofertas de disciplinas.",
+        "Apenas administradores, diretores e coordenadores podem criar ofertas de disciplinas.",
       )
     }
-    // Extrair o ID do coordenador do JWT
+
     return this.disciplinasOfertadasService.create(
       createDisciplinaOfertadaDto,
-      user.id, // Passar o ID do coordenador logado
+      user.id,
+      user.papel,
     )
   }
 
   @Get()
   @ApiOperation({
-    summary: "Listar disciplinas ofertadas (Coordenador, Diretor)",
+    summary: "Listar disciplinas ofertadas (Admin, Diretor, Coordenador)",
   })
   @ApiQuery({
     name: "periodoId",
@@ -96,10 +108,12 @@ export class DisciplinasOfertadasController {
     @Query("cursoId") cursoId?: string,
   ): Promise<DisciplinaOfertadaResponseDto[]> {
     const user = request.user
-    // Allowing COORDENADOR and DIRETOR to list. Adjust if needed.
+
+    // Permitir ADMIN, DIRETOR e COORDENADOR
     if (
-      user.papel !== PapelUsuario.COORDENADOR &&
-      user.papel !== PapelUsuario.DIRETOR
+      user.papel !== PapelUsuario.ADMIN &&
+      user.papel !== PapelUsuario.DIRETOR &&
+      user.papel !== PapelUsuario.COORDENADOR
     ) {
       throw new ForbiddenException(
         "Acesso negado para listar ofertas de disciplinas.",
@@ -108,9 +122,6 @@ export class DisciplinasOfertadasController {
 
     const filters: FindAllDisciplinasOfertadasFilters = {}
     if (periodoId) filters.periodoId = periodoId
-    // If the user is a COORDENADOR, we might want to automatically filter by their cursoId(s)
-    // unless they are also a DIRETOR or an admin (not handled here) or if a cursoId is explicitly provided.
-    // For now, if cursoId is provided, it's used. Otherwise, it's open if allowed by role.
     if (cursoId) filters.cursoId = cursoId
 
     return this.disciplinasOfertadasService.findAll(filters)
@@ -119,7 +130,7 @@ export class DisciplinasOfertadasController {
   @Get(":id")
   @ApiOperation({
     summary:
-      "Obter detalhes de uma oferta de disciplina específica (Coordenador, Diretor)",
+      "Obter detalhes de uma oferta de disciplina específica (Admin, Diretor, Coordenador)",
   })
   @ApiParam({
     name: "id",
@@ -141,19 +152,23 @@ export class DisciplinasOfertadasController {
     @Req() request: RequestWithUser,
   ): Promise<DisciplinaOfertadaResponseDto> {
     const user = request.user
+
+    // Permitir ADMIN, DIRETOR e COORDENADOR
     if (
-      user.papel !== PapelUsuario.COORDENADOR &&
-      user.papel !== PapelUsuario.DIRETOR
+      user.papel !== PapelUsuario.ADMIN &&
+      user.papel !== PapelUsuario.DIRETOR &&
+      user.papel !== PapelUsuario.COORDENADOR
     ) {
       throw new ForbiddenException("Acesso negado para ver detalhes da oferta.")
     }
-    // For findOne, further authorization (is this user's oferta?) might happen in the service or based on returned data.
+
     return this.disciplinasOfertadasService.findOne(id)
   }
 
   @Patch(":id")
   @ApiOperation({
-    summary: "Atualizar dados de uma oferta de disciplina (Coordenador)",
+    summary:
+      "Atualizar dados de uma oferta de disciplina (Admin, Diretor, Coordenador)",
   })
   @ApiParam({
     name: "id",
@@ -176,20 +191,30 @@ export class DisciplinasOfertadasController {
     @Req() request: RequestWithUser,
   ): Promise<DisciplinaOfertadaResponseDto> {
     const user = request.user
-    if (user.papel !== PapelUsuario.COORDENADOR) {
+
+    // Permitir ADMIN, DIRETOR e COORDENADOR
+    if (
+      user.papel !== PapelUsuario.ADMIN &&
+      user.papel !== PapelUsuario.DIRETOR &&
+      user.papel !== PapelUsuario.COORDENADOR
+    ) {
       throw new ForbiddenException(
-        "Apenas coordenadores podem atualizar ofertas de disciplinas.",
+        "Apenas administradores, diretores e coordenadores podem atualizar ofertas de disciplinas.",
       )
     }
+
     return this.disciplinasOfertadasService.update(
       id,
       updateDisciplinaOfertadaDto,
-      user.id, // Passar o ID do coordenador solicitante para verificação de propriedade
+      user.id,
+      user.papel,
     )
   }
 
   @Delete(":id")
-  @ApiOperation({ summary: "Cancelar uma oferta de disciplina (Coordenador)" })
+  @ApiOperation({
+    summary: "Cancelar uma oferta de disciplina (Admin, Diretor, Coordenador)",
+  })
   @ApiParam({
     name: "id",
     description: "ID da oferta da disciplina (UUID)",
@@ -209,11 +234,18 @@ export class DisciplinasOfertadasController {
     @Req() request: RequestWithUser,
   ): Promise<void> {
     const user = request.user
-    if (user.papel !== PapelUsuario.COORDENADOR) {
+
+    // Permitir ADMIN, DIRETOR e COORDENADOR
+    if (
+      user.papel !== PapelUsuario.ADMIN &&
+      user.papel !== PapelUsuario.DIRETOR &&
+      user.papel !== PapelUsuario.COORDENADOR
+    ) {
       throw new ForbiddenException(
-        "Apenas coordenadores podem remover ofertas de disciplinas.",
+        "Apenas administradores, diretores e coordenadores podem remover ofertas de disciplinas.",
       )
     }
-    return this.disciplinasOfertadasService.remove(id, user.id) // Passar o ID do coordenador solicitante
+
+    return this.disciplinasOfertadasService.remove(id, user.id, user.papel)
   }
 }

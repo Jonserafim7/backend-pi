@@ -27,8 +27,8 @@ import { RequestWithUser } from "../auth/interfaces/request-with-user.interface"
 
 /**
  * Controller responsável pelos endpoints de configurações de horário.
- * GET: Diretores e Professores podem acessar.
- * PUT: Acesso restrito a Diretores.
+ * GET: Diretores, Professores e Administradores podem acessar.
+ * PUT: Acesso restrito a Diretores e Administradores.
  */
 @ApiTags("Configurações de Horário")
 @ApiBearerAuth()
@@ -43,14 +43,14 @@ export class ConfiguracoesHorarioController {
 
   /**
    * Obtém a configuração de horário global.
-   * Diretores e Professores podem acessar este endpoint.
+   * Diretores, Professores e Administradores podem acessar este endpoint.
    * @param req Objeto da requisição, usado para logging.
    * @returns A configuração de horário global.
    * @throws NotFoundException se nenhuma configuração for encontrada.
-   * @throws ForbiddenException se o usuário não for Diretor ou Professor.
+   * @throws ForbiddenException se o usuário não for Diretor, Professor ou Administrador.
    */
   @Get()
-  @Roles(PapelUsuario.DIRETOR, PapelUsuario.PROFESSOR)
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.PROFESSOR, PapelUsuario.ADMIN)
   @ApiOperation({ summary: "Obtém a configuração de horário global" })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -88,15 +88,15 @@ export class ConfiguracoesHorarioController {
 
   /**
    * Cria ou atualiza a configuração de horário global.
-   * Apenas Diretores podem acessar este endpoint.
+   * Apenas Diretores e Administradores podem acessar este endpoint.
    * @param req Objeto da requisição, usado para logging.
    * @param dto Dados para criar/atualizar a configuração.
    * @returns A configuração de horário salva.
-   * @throws ForbiddenException se o usuário não for Diretor.
+   * @throws ForbiddenException se o usuário não for Diretor ou Administrador.
    * @throws BadRequestException se os dados forem inválidos.
    */
   @Put()
-  @Roles(PapelUsuario.DIRETOR)
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
   @ApiOperation({ summary: "Cria ou atualiza a configuração de horário global" })
   @ApiBody({ type: UpsertConfiguracaoHorarioDto })
   @ApiResponse({

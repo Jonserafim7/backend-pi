@@ -50,7 +50,12 @@ export class ConfiguracoesHorarioController {
    * @throws ForbiddenException se o usuário não for Diretor, Professor ou Administrador.
    */
   @Get()
-  @Roles(PapelUsuario.DIRETOR, PapelUsuario.PROFESSOR, PapelUsuario.ADMIN)
+  @Roles(
+    PapelUsuario.DIRETOR,
+    PapelUsuario.PROFESSOR,
+    PapelUsuario.ADMIN,
+    PapelUsuario.COORDENADOR,
+  )
   @ApiOperation({ summary: "Obtém a configuração de horário global" })
   @ApiResponse({
     status: HttpStatus.OK,

@@ -1,30 +1,58 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { DiaSemana } from "@prisma/client"
 
-export class TurmaBasicaDto {
-  @ApiProperty()
+export class DisciplinaBasicaDto {
+  @ApiProperty({ description: "ID da disciplina" })
   id: string
 
-  @ApiProperty()
+  @ApiProperty({ description: "Nome da disciplina" })
+  nome: string
+
+  @ApiProperty({ description: "Código da disciplina" })
+  codigo: string
+
+  @ApiProperty({ description: "Carga horária da disciplina" })
+  cargaHoraria: number
+}
+
+export class DisciplinaOfertadaBasicaDto {
+  @ApiProperty({ description: "ID da disciplina ofertada" })
+  id: string
+
+  @ApiProperty({ description: "Dados da disciplina", type: DisciplinaBasicaDto })
+  disciplina: DisciplinaBasicaDto
+}
+
+export class ProfessorBasicoDto {
+  @ApiProperty({ description: "ID do professor" })
+  id: string
+
+  @ApiProperty({ description: "Nome do professor" })
+  nome: string
+
+  @ApiProperty({ description: "Email do professor" })
+  email: string
+}
+
+export class TurmaBasicaDto {
+  @ApiProperty({ description: "ID da turma" })
+  id: string
+
+  @ApiProperty({ description: "Código da turma" })
   codigoDaTurma: string
 
-  @ApiProperty()
-  disciplinaOfertada: {
-    id: string
-    disciplina: {
-      id: string
-      nome: string
-      codigo: string
-      cargaHoraria: number
-    }
-  }
+  @ApiProperty({
+    description: "Dados da disciplina ofertada",
+    type: DisciplinaOfertadaBasicaDto,
+  })
+  disciplinaOfertada: DisciplinaOfertadaBasicaDto
 
-  @ApiProperty()
-  professorAlocado?: {
-    id: string
-    nome: string
-    email: string
-  }
+  @ApiProperty({
+    description: "Professor alocado à turma",
+    type: ProfessorBasicoDto,
+    required: false,
+  })
+  professorAlocado?: ProfessorBasicoDto
 }
 
 export class AlocacaoHorarioResponseDto {

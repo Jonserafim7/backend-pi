@@ -15,6 +15,7 @@ import { DisciplinasOfertadasModule } from "./disciplinas-ofertadas/disciplinas-
 import { TurmasModule } from "./turmas/turmas.module"
 import { PeriodosLetivosModule } from "./periodos-letivos/periodos-letivos.module"
 import { DisponibilidadeProfessorModule } from "./disponibilidade-professores/disponibilidade-professor.module"
+import { AlocacoesHorariosModule } from "./alocacoes-horarios/alocacoes-horarios.module"
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { DisponibilidadeProfessorModule } from "./disponibilidade-professores/di
     TurmasModule,
     PeriodosLetivosModule,
     DisponibilidadeProfessorModule,
+    AlocacoesHorariosModule,
   ],
   controllers: [AppController],
   providers: [

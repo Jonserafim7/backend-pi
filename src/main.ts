@@ -49,6 +49,45 @@ window.addEventListener('load', function() {
       return;
     }
 
+    // Função para salvar token no localStorage
+    function saveTokenToStorage(token) {
+      try {
+        localStorage.setItem('swagger_bearer_token', token);
+        console.log("Token saved to localStorage");
+      } catch (e) {
+        console.error("Error saving token to localStorage:", e);
+      }
+    }
+
+    // Função para carregar token do localStorage
+    function loadTokenFromStorage() {
+      try {
+        const token = localStorage.getItem('swagger_bearer_token');
+        if (token) {
+          window.ui.preauthorizeApiKey("bearer", token);
+          console.log("Bearer token loaded from localStorage and set in Swagger UI");
+          return true;
+        }
+      } catch (e) {
+        console.error("Error loading token from localStorage:", e);
+      }
+      return false;
+    }
+
+    // Função para remover token do localStorage
+    function removeTokenFromStorage() {
+      try {
+        localStorage.removeItem('swagger_bearer_token');
+        console.log("Token removed from localStorage");
+      } catch (e) {
+        console.error("Error removing token from localStorage:", e);
+      }
+    }
+
+    // Carrega token salvo ao inicializar a página
+    loadTokenFromStorage();
+
+    // Intercepta o fetch para capturar novos tokens de login
     const originalFetch = window.fetch;
     window.fetch = async function (input, init) {
       const response = await originalFetch(input, init);
@@ -62,7 +101,8 @@ window.addEventListener('load', function() {
           const responseBody = await clonedResponse.json();
           if (responseBody && responseBody.accessToken) {
             window.ui.preauthorizeApiKey("bearer", responseBody.accessToken);
-            console.log("Bearer token automatically set in Swagger UI from /auth/login response.");
+            saveTokenToStorage(responseBody.accessToken);
+            console.log("Bearer token automatically set in Swagger UI from /auth/login response and saved to localStorage.");
           } else {
             console.log("Login response detected, but accessToken not found in body:", responseBody);
           }
@@ -70,9 +110,43 @@ window.addEventListener('load', function() {
           console.error("Error parsing login response or setting token in Swagger UI:", e);
         }
       }
+
+      // Verifica se é uma resposta 401 (Unauthorized) para remover token inválido
+      if (response.status === 401) {
+        console.log("Received 401 response, removing stored token");
+        removeTokenFromStorage();
+        // Opcional: remover autorização do Swagger UI também
+        try {
+          window.ui.preauthorizeApiKey("bearer", "");
+        } catch (e) {
+          console.error("Error clearing authorization in Swagger UI:", e);
+        }
+      }
+
       return response; // Retorna a resposta original para o fluxo normal do Swagger UI
     };
-    console.log("Custom Swagger UI script for automatic token authorization loaded.");
+
+    // Adiciona botão para limpar token manualmente (opcional)
+    setTimeout(function() {
+      try {
+        const topbar = document.querySelector('.topbar');
+        if (topbar) {
+          const clearTokenBtn = document.createElement('button');
+          clearTokenBtn.innerHTML = 'Limpar Token';
+          clearTokenBtn.style.cssText = 'margin-left: 10px; padding: 5px 10px; background: #ff6b6b; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;';
+          clearTokenBtn.onclick = function() {
+            removeTokenFromStorage();
+            window.ui.preauthorizeApiKey("bearer", "");
+            alert('Token removido com sucesso!');
+          };
+          topbar.appendChild(clearTokenBtn);
+        }
+      } catch (e) {
+        console.error("Error adding clear token button:", e);
+      }
+    }, 2000);
+
+    console.log("Custom Swagger UI script for persistent token authorization loaded.");
   }, 1000); // Delay de 1 segundo para garantir que 'ui' esteja inicializado
 });
 `,

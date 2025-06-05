@@ -6,7 +6,8 @@ import { IsArray, IsOptional, IsUUID } from "class-validator"
  * DTO para atualização de uma Matriz Curricular
  *
  * Estende o DTO de criação tornando todos os campos opcionais,
- * e adiciona campos específicos para atualização
+ * e adiciona campos específicos para atualização.
+ * O curso não pode ser alterado após a criação.
  */
 export class UpdateMatrizCurricularDto extends PartialType(
   CreateMatrizCurricularDto,

@@ -5,7 +5,8 @@ import { IsArray, IsNotEmpty, IsString, IsUUID } from "class-validator"
  * DTO para criação de uma nova Matriz Curricular
  *
  * Permite definir os dados básicos da matriz curricular e
- * as disciplinas que a compõem
+ * as disciplinas que a compõem. O curso é obtido automaticamente
+ * através do coordenador logado.
  */
 export class CreateMatrizCurricularDto {
   @ApiProperty({
@@ -15,14 +16,6 @@ export class CreateMatrizCurricularDto {
   @IsNotEmpty({ message: "O nome da matriz curricular é obrigatório" })
   @IsString({ message: "O nome deve ser uma string" })
   nome: string = ""
-
-  @ApiProperty({
-    description: "ID do curso ao qual a matriz curricular pertence",
-    example: "550e8400-e29b-41d4-a716-446655440000",
-  })
-  @IsNotEmpty({ message: "O ID do curso é obrigatório" })
-  @IsUUID("4", { message: "O ID do curso deve ser um UUID válido" })
-  idCurso: string = ""
 
   @ApiProperty({
     description: "Lista de IDs das disciplinas da matriz curricular",

@@ -24,22 +24,36 @@ export class MatrizesCurricularesService {
    * Cria uma nova matriz curricular
    *
    * @param createMatrizCurricularDto - Dados para criação da matriz
+   * @param userId - ID do usuário coordenador logado
    * @returns Matriz curricular criada
-   * @throws BadRequestException se o curso não for encontrado ou disciplinas não existirem
+   * @throws BadRequestException se o coordenador não estiver associado a um curso ou disciplinas não existirem
    */
   async create(
     createMatrizCurricularDto: CreateMatrizCurricularDto,
+    userId: string,
   ): Promise<MatrizCurricularResponseDto> {
-    const { nome, idCurso, disciplinasIds } = createMatrizCurricularDto
+    const { nome, disciplinasIds } = createMatrizCurricularDto
 
-    // Verificar se o curso existe
-    const cursoExiste = await this.prisma.curso.findUnique({
-      where: { id: idCurso },
+    // Buscar o curso do coordenador logado
+    const coordenador = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      include: {
+        cursosCoordenados: true,
+      },
     })
 
-    if (!cursoExiste) {
-      throw new BadRequestException(`Curso com ID ${idCurso} não encontrado`)
+    if (!coordenador) {
+      throw new BadRequestException(`Usuário coordenador não encontrado`)
     }
+
+    if (coordenador.cursosCoordenados.length === 0) {
+      throw new BadRequestException(
+        `O coordenador não está associado a nenhum curso. Entre em contato com o administrador.`,
+      )
+    }
+
+    // Usar o primeiro curso do coordenador (assumindo que um coordenador tem apenas um curso)
+    const idCurso = coordenador.cursosCoordenados[0].id
 
     // Verificar se todas as disciplinas existem
     if (disciplinasIds && disciplinasIds.length > 0) {
@@ -205,22 +219,10 @@ export class MatrizesCurricularesService {
 
     const {
       nome,
-      idCurso,
       disciplinasIds,
       disciplinasParaAdicionar,
       disciplinasParaRemover,
     } = updateMatrizCurricularDto
-
-    // Verificar se o curso existe, se informado
-    if (idCurso) {
-      const cursoExiste = await this.prisma.curso.findUnique({
-        where: { id: idCurso },
-      })
-
-      if (!cursoExiste) {
-        throw new BadRequestException(`Curso com ID ${idCurso} não encontrado`)
-      }
-    }
 
     // Verificar disciplinas a adicionar, se informadas
     if (disciplinasParaAdicionar && disciplinasParaAdicionar.length > 0) {
@@ -242,14 +244,11 @@ export class MatrizesCurricularesService {
 
     // Usar transação para garantir atomicidade
     return this.prisma.$transaction(async (tx) => {
-      // Atualizar dados básicos da matriz curricular
-      if (nome || idCurso) {
+      // Atualizar dados básicos da matriz curricular (apenas nome)
+      if (nome) {
         await tx.matrizCurricular.update({
           where: { id },
-          data: {
-            ...(nome && { nome }),
-            ...(idCurso && { idCurso }),
-          },
+          data: { nome },
         })
       }
 

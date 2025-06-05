@@ -24,6 +24,7 @@ import { MatrizCurricularResponseDto } from "./dto/matriz-curricular-response.dt
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"
 import { RolesGuard } from "../auth/guards/roles.guard"
 import { Roles } from "../auth/decorators/roles.decorator"
+import { CurrentUser } from "../auth/decorators/current-user.decorator"
 import { PapelUsuario } from "@prisma/client"
 
 /**
@@ -44,7 +45,8 @@ export class MatrizesCurricularesController {
   /**
    * Cria uma nova matriz curricular
    *
-   * Endpoint que permite a criação de uma matriz curricular e associação com disciplinas
+   * Endpoint que permite a criação de uma matriz curricular e associação com disciplinas.
+   * O curso é automaticamente identificado através do coordenador logado.
    */
   @ApiOperation({ summary: "Criar nova matriz curricular" })
   @ApiResponse({
@@ -59,8 +61,12 @@ export class MatrizesCurricularesController {
   @Post()
   create(
     @Body() createMatrizCurricularDto: CreateMatrizCurricularDto,
+    @CurrentUser() user: { id: string; email: string; papel: PapelUsuario },
   ): Promise<MatrizCurricularResponseDto> {
-    return this.matrizesCurricularesService.create(createMatrizCurricularDto)
+    return this.matrizesCurricularesService.create(
+      createMatrizCurricularDto,
+      user.id,
+    )
   }
 
   /**

@@ -14,6 +14,7 @@ import {
 } from "@nestjs/common"
 import { DisciplinasOfertadasService } from "./disciplinas-ofertadas.service"
 import { CreateDisciplinaOfertadaDto } from "./dto/create-disciplina-ofertada.dto"
+import { CreateDisciplinaOfertadaSimplificadaDto } from "./dto/create-disciplina-ofertada-simplificada.dto"
 import { UpdateDisciplinaOfertadaDto } from "./dto/update-disciplina-ofertada.dto"
 import { DisciplinaOfertadaResponseDto } from "./dto/disciplina-ofertada-response.dto"
 import {
@@ -75,6 +76,37 @@ export class DisciplinasOfertadasController {
 
     return this.disciplinasOfertadasService.create(
       createDisciplinaOfertadaDto,
+      user.id,
+      user.papel,
+    )
+  }
+
+  @Post("periodo-ativo")
+  @ApiOperation({
+    summary: "Criar oferta de disciplina no período letivo ativo (Coordenador)",
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      "A oferta da disciplina foi criada com sucesso no período ativo.",
+    type: DisciplinaOfertadaResponseDto,
+  })
+  @ApiResponse({ status: 400, description: "Parâmetros inválidos." })
+  @ApiResponse({ status: 403, description: "Acesso negado." })
+  @ApiResponse({
+    status: 404,
+    description: "Nenhum período letivo ativo encontrado.",
+  })
+  @Roles(PapelUsuario.COORDENADOR)
+  async createComPeriodoAtivo(
+    @Body() createDto: CreateDisciplinaOfertadaSimplificadaDto,
+    @Req() request: RequestWithUser,
+  ): Promise<DisciplinaOfertadaResponseDto> {
+    const user = request.user
+
+    return this.disciplinasOfertadasService.createComPeriodoAtivo(
+      createDto.idDisciplina,
+      createDto.quantidadeTurmas,
       user.id,
       user.papel,
     )

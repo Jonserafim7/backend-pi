@@ -101,33 +101,58 @@ export class MatrizesCurricularesService {
   /**
    * Lista todas as matrizes curriculares
    *
-   * @param idCurso - Filtro opcional por curso
+   * @param idCurso - ID do curso para filtrar (opcional)
    * @returns Lista de matrizes curriculares
    */
   async findAll(idCurso?: string): Promise<MatrizCurricularResponseDto[]> {
-    const whereClause: Prisma.MatrizCurricularWhereInput = {}
-
-    if (idCurso) {
-      whereClause.idCurso = idCurso
-    }
+    const whereClause = idCurso ? { idCurso } : {}
 
     const matrizes = await this.prisma.matrizCurricular.findMany({
       where: whereClause,
       include: {
-        curso: {
-          select: {
-            nome: true,
-          },
-        },
-        disciplinasDaMatriz: {
-          include: {
-            disciplina: true,
-          },
-        },
+        disciplinasDaMatriz: { include: { disciplina: true } },
+        curso: true,
       },
-      orderBy: {
-        dataCriacao: "desc",
+      orderBy: { dataCriacao: "desc" },
+    })
+
+    return matrizes.map((matriz) => this.mapToResponse(matriz))
+  }
+
+  /**
+   * Lista matrizes curriculares do coordenador logado
+   *
+   * @param coordenadorId - ID do coordenador logado
+   * @returns Lista de matrizes curriculares dos cursos que o coordenador coordena
+   * @throws BadRequestException se o coordenador não estiver associado a nenhum curso
+   */
+  async findMatrizesDoCoordenador(
+    coordenadorId: string,
+  ): Promise<MatrizCurricularResponseDto[]> {
+    // Buscar os cursos que o coordenador coordena
+    const cursosCoordenados = await this.prisma.curso.findMany({
+      where: { idCoordenador: coordenadorId },
+      select: { id: true },
+    })
+
+    if (!cursosCoordenados || cursosCoordenados.length === 0) {
+      throw new BadRequestException(
+        "Coordenador não está associado a nenhum curso",
+      )
+    }
+
+    const idsCursosCoordenados = cursosCoordenados.map((curso) => curso.id)
+
+    // Buscar matrizes curriculares dos cursos coordenados
+    const matrizes = await this.prisma.matrizCurricular.findMany({
+      where: {
+        idCurso: { in: idsCursosCoordenados },
       },
+      include: {
+        disciplinasDaMatriz: { include: { disciplina: true } },
+        curso: true,
+      },
+      orderBy: { dataCriacao: "desc" },
     })
 
     return matrizes.map((matriz) => this.mapToResponse(matriz))

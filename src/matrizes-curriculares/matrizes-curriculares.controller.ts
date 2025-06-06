@@ -95,6 +95,27 @@ export class MatrizesCurricularesController {
   }
 
   /**
+   * Lista matrizes curriculares do coordenador logado
+   *
+   * Endpoint que retorna apenas as matrizes curriculares dos cursos que o coordenador coordena
+   */
+  @ApiOperation({ summary: "Listar matrizes curriculares do coordenador logado" })
+  @ApiResponse({
+    status: 200,
+    description: "Lista de matrizes curriculares do coordenador",
+    type: [MatrizCurricularResponseDto],
+  })
+  @ApiResponse({ status: 401, description: "Não autorizado" })
+  @ApiResponse({ status: 403, description: "Acesso proibido" })
+  @Roles(PapelUsuario.COORDENADOR)
+  @Get("coordenador/minhas-matrizes")
+  findMatrizesDoCoordenador(
+    @CurrentUser() user: { id: string; email: string; papel: PapelUsuario },
+  ): Promise<MatrizCurricularResponseDto[]> {
+    return this.matrizesCurricularesService.findMatrizesDoCoordenador(user.id)
+  }
+
+  /**
    * Busca uma matriz curricular específica
    *
    * Endpoint que retorna os detalhes de uma matriz curricular pelo seu ID

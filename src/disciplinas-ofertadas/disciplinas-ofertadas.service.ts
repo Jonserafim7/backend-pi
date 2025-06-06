@@ -184,6 +184,45 @@ export class DisciplinasOfertadasService {
     }
   }
 
+  /**
+   * Cria uma disciplina ofertada usando o período letivo ativo automaticamente
+   *
+   * @param idDisciplina - ID da disciplina a ser ofertada
+   * @param quantidadeTurmas - Quantidade de turmas para a disciplina
+   * @param userId - ID do usuário que está criando a oferta
+   * @param userRole - Papel do usuário
+   * @returns Disciplina ofertada criada
+   * @throws NotFoundException se não houver período letivo ativo
+   */
+  async createComPeriodoAtivo(
+    idDisciplina: string,
+    quantidadeTurmas: number,
+    userId: string,
+    userRole?: string,
+  ): Promise<DisciplinaOfertadaResponseDto> {
+    // Buscar o período letivo ativo
+    const periodoAtivo = await this.prisma.periodoLetivo.findFirst({
+      where: { status: "ATIVO" },
+    })
+
+    if (!periodoAtivo) {
+      throw new NotFoundException(
+        "Não há período letivo ativo para ofertar disciplinas.",
+      )
+    }
+
+    // Usar o método create existente com o período ativo
+    return this.create(
+      {
+        idDisciplina,
+        idPeriodoLetivo: periodoAtivo.id,
+        quantidadeTurmas,
+      },
+      userId,
+      userRole,
+    )
+  }
+
   async findAll(
     filters: FindAllDisciplinasOfertadasServiceFilters,
   ): Promise<DisciplinaOfertadaResponseDto[]> {

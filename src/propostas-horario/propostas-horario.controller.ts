@@ -9,7 +9,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
   HttpStatus,
-  Request,
+  Req,
 } from "@nestjs/common"
 import { PropostasHorarioService } from "./propostas-horario.service"
 import { CreatePropostaHorarioDto } from "./dto/create-proposta-horario.dto"
@@ -22,6 +22,7 @@ import {
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"
 import { RolesGuard } from "../auth/guards/roles.guard"
 import { Roles } from "../auth/decorators/roles.decorator"
+import { RequestWithUser } from "../auth/interfaces/request-with-user.interface"
 import { PapelUsuario } from "@prisma/client"
 import {
   ApiTags,
@@ -65,11 +66,11 @@ export class PropostasHorarioController {
   })
   async create(
     @Body() createPropostaDto: CreatePropostaHorarioDto,
-    @Request() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<PropostaHorarioResponseDto> {
     const proposta = await this.propostasHorarioService.create(
       createPropostaDto,
-      req.user.sub,
+      req.user.id,
     )
     return new PropostaHorarioResponseDto(proposta)
   }
@@ -84,9 +85,11 @@ export class PropostasHorarioController {
     description: "Lista de propostas retornada com sucesso",
     type: [PropostaHorarioResponseDto],
   })
-  async findAll(@Request() req: any): Promise<PropostaHorarioResponseDto[]> {
+  async findAll(
+    @Req() req: RequestWithUser,
+  ): Promise<PropostaHorarioResponseDto[]> {
     const propostas = await this.propostasHorarioService.findAll(
-      req.user.sub,
+      req.user.id,
       req.user.papel,
     )
     return propostas.map((proposta) => new PropostaHorarioResponseDto(proposta))
@@ -110,11 +113,11 @@ export class PropostasHorarioController {
   })
   async findOne(
     @Param("id", ParseUUIDPipe) id: string,
-    @Request() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<PropostaHorarioResponseDto> {
     const proposta = await this.propostasHorarioService.findOne(
       id,
-      req.user.sub,
+      req.user.id,
       req.user.papel,
     )
     return new PropostaHorarioResponseDto(proposta)
@@ -140,12 +143,12 @@ export class PropostasHorarioController {
   async update(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() updatePropostaDto: UpdatePropostaHorarioDto,
-    @Request() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<PropostaHorarioResponseDto> {
     const proposta = await this.propostasHorarioService.update(
       id,
       updatePropostaDto,
-      req.user.sub,
+      req.user.id,
     )
     return new PropostaHorarioResponseDto(proposta)
   }
@@ -170,12 +173,12 @@ export class PropostasHorarioController {
   async submit(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() submitDto: SubmitPropostaHorarioDto,
-    @Request() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<PropostaHorarioResponseDto> {
     const proposta = await this.propostasHorarioService.submit(
       id,
       submitDto,
-      req.user.sub,
+      req.user.id,
     )
     return new PropostaHorarioResponseDto(proposta)
   }
@@ -249,9 +252,9 @@ export class PropostasHorarioController {
   })
   async reopen(
     @Param("id", ParseUUIDPipe) id: string,
-    @Request() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<PropostaHorarioResponseDto> {
-    const proposta = await this.propostasHorarioService.reopen(id, req.user.sub)
+    const proposta = await this.propostasHorarioService.reopen(id, req.user.id)
     return new PropostaHorarioResponseDto(proposta)
   }
 
@@ -274,9 +277,9 @@ export class PropostasHorarioController {
   })
   async remove(
     @Param("id", ParseUUIDPipe) id: string,
-    @Request() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<PropostaHorarioResponseDto> {
-    const proposta = await this.propostasHorarioService.remove(id, req.user.sub)
+    const proposta = await this.propostasHorarioService.remove(id, req.user.id)
     return new PropostaHorarioResponseDto(proposta)
   }
 }

@@ -33,6 +33,7 @@ export class AlocacoesHorariosService {
     const alocacao = await this.prisma.alocacaoHorario.create({
       data: {
         idTurma: dto.idTurma,
+        idPropostaHorario: dto.idPropostaHorario,
         diaDaSemana: dto.diaDaSemana,
         horaInicio: dto.horaInicio,
         horaFim: dto.horaFim,
@@ -127,6 +128,38 @@ export class AlocacoesHorariosService {
   }
 
   /**
+   * Busca alocações por proposta de horário
+   */
+  async findByProposta(
+    idPropostaHorario: string,
+  ): Promise<AlocacaoHorarioResponseDto[]> {
+    const alocacoes = await this.prisma.alocacaoHorario.findMany({
+      where: { idPropostaHorario },
+      include: {
+        turma: {
+          include: {
+            disciplinaOfertada: {
+              include: {
+                disciplina: true,
+              },
+            },
+            professorAlocado: {
+              select: {
+                id: true,
+                nome: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ diaDaSemana: "asc" }, { horaInicio: "asc" }],
+    })
+
+    return alocacoes.map(this.mapToResponseDto)
+  }
+
+  /**
    * Busca alocações com filtros
    */
   async findMany(
@@ -155,6 +188,10 @@ export class AlocacoesHorariosService {
 
     if (query.diaDaSemana) {
       where.diaDaSemana = query.diaDaSemana
+    }
+
+    if (query.idPropostaHorario) {
+      where.idPropostaHorario = query.idPropostaHorario
     }
 
     const alocacoes = await this.prisma.alocacaoHorario.findMany({

@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger"
-import { IsNotEmpty, IsString, IsEnum } from "class-validator"
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger"
+import { IsNotEmpty, IsString, IsEnum, IsOptional } from "class-validator"
 import { DiaSemana } from "@prisma/client"
 
 export class CreateAlocacaoHorarioDto {
@@ -10,6 +10,15 @@ export class CreateAlocacaoHorarioDto {
   @IsNotEmpty()
   @IsString()
   idTurma: string
+
+  @ApiPropertyOptional({
+    description:
+      "ID da proposta de horário (opcional para alocações dentro de propostas)",
+    example: "clx1234567890abcdef",
+  })
+  @IsOptional()
+  @IsString()
+  idPropostaHorario?: string
 
   @ApiProperty({
     description: "Dia da semana para a alocação",

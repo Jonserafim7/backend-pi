@@ -35,4 +35,12 @@ export class AlocacaoHorarioQueryDto {
   @IsOptional()
   @IsEnum(DiaSemana)
   diaDaSemana?: DiaSemana
+
+  @ApiPropertyOptional({
+    description: "Filtrar por ID da proposta de horário",
+    example: "clx1234567890abcdef",
+  })
+  @IsOptional()
+  @IsString()
+  idPropostaHorario?: string
 }

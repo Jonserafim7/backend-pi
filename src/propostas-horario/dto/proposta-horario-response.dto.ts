@@ -3,6 +3,92 @@ import { PropostaHorarioStatus } from "@prisma/client"
 import { PropostaHorarioComRelacionamentos } from "../types/proposta-horario-com-relacionamentos.type"
 
 /**
+ * DTO para dados do curso na resposta da proposta
+ */
+export class CursoPropostaDto {
+  @ApiProperty({
+    description: "ID do curso",
+    example: "b2c3d4e5-f6g7-8901-bcde-f23456789012",
+  })
+  id!: string
+
+  @ApiProperty({
+    description: "Nome do curso",
+    example: "Engenharia de Software",
+  })
+  nome!: string
+
+  @ApiProperty({
+    description: "Código do curso",
+    example: "ENG-SOFT",
+    required: false,
+  })
+  codigo!: string | null
+}
+
+/**
+ * DTO para dados do período letivo na resposta da proposta
+ */
+export class PeriodoLetivoPropostaDto {
+  @ApiProperty({
+    description: "ID do período letivo",
+    example: "c3d4e5f6-g7h8-9012-cdef-345678901234",
+  })
+  id!: string
+
+  @ApiProperty({
+    description: "Ano do período letivo",
+    example: 2024,
+  })
+  ano!: number
+
+  @ApiProperty({
+    description: "Semestre do período letivo",
+    example: 1,
+  })
+  semestre!: number
+
+  @ApiProperty({
+    description: "Data de início do período letivo",
+    example: "2024-02-01T00:00:00.000Z",
+    type: "string",
+    format: "date-time",
+  })
+  dataInicio!: Date
+
+  @ApiProperty({
+    description: "Data de fim do período letivo",
+    example: "2024-06-30T23:59:59.999Z",
+    type: "string",
+    format: "date-time",
+  })
+  dataFim!: Date
+}
+
+/**
+ * DTO para dados do coordenador na resposta da proposta
+ */
+export class CoordenadorPropostaDto {
+  @ApiProperty({
+    description: "ID do coordenador",
+    example: "d4e5f6g7-h8i9-0123-defg-456789012345",
+  })
+  id!: string
+
+  @ApiProperty({
+    description: "Nome do coordenador",
+    example: "Prof. João Silva",
+  })
+  nome!: string
+
+  @ApiProperty({
+    description: "Email do coordenador",
+    example: "joao.silva@instituicao.edu",
+  })
+  email!: string
+}
+
+/**
  * DTO de resposta para proposta de horário
  */
 export class PropostaHorarioResponseDto {
@@ -20,55 +106,27 @@ export class PropostaHorarioResponseDto {
    */
   @ApiProperty({
     description: "Dados do curso",
-    example: {
-      id: "b2c3d4e5-f6g7-8901-bcde-f23456789012",
-      nome: "Engenharia de Software",
-      codigo: "ENG-SOFT",
-    },
+    type: CursoPropostaDto,
   })
-  curso!: {
-    id: string
-    nome: string
-    codigo: string | null
-  }
+  curso!: CursoPropostaDto
 
   /**
    * Dados do período letivo
    */
   @ApiProperty({
     description: "Dados do período letivo",
-    example: {
-      id: "c3d4e5f6-g7h8-9012-cdef-345678901234",
-      ano: 2024,
-      semestre: 1,
-      dataInicio: "2024-02-01T00:00:00.000Z",
-      dataFim: "2024-06-30T23:59:59.999Z",
-    },
+    type: PeriodoLetivoPropostaDto,
   })
-  periodoLetivo!: {
-    id: string
-    ano: number
-    semestre: number
-    dataInicio: Date
-    dataFim: Date
-  }
+  periodoLetivo!: PeriodoLetivoPropostaDto
 
   /**
    * Dados do coordenador que submeteu
    */
   @ApiProperty({
     description: "Dados do coordenador que submeteu",
-    example: {
-      id: "d4e5f6g7-h8i9-0123-defg-456789012345",
-      nome: "Prof. João Silva",
-      email: "joao.silva@instituicao.edu",
-    },
+    type: CoordenadorPropostaDto,
   })
-  coordenadorQueSubmeteu!: {
-    id: string
-    nome: string
-    email: string
-  }
+  coordenadorQueSubmeteu!: CoordenadorPropostaDto
 
   /**
    * Status atual da proposta
@@ -86,6 +144,8 @@ export class PropostaHorarioResponseDto {
   @ApiProperty({
     description: "Data de submissão da proposta",
     example: "2024-01-15T10:30:00.000Z",
+    type: "string",
+    format: "date-time",
     required: false,
   })
   dataSubmissao!: Date | null
@@ -96,6 +156,8 @@ export class PropostaHorarioResponseDto {
   @ApiProperty({
     description: "Data de aprovação ou rejeição",
     example: "2024-01-20T14:15:00.000Z",
+    type: "string",
+    format: "date-time",
     required: false,
   })
   dataAprovacaoRejeicao!: Date | null
@@ -145,6 +207,8 @@ export class PropostaHorarioResponseDto {
   @ApiProperty({
     description: "Data de criação",
     example: "2024-01-10T08:00:00.000Z",
+    type: "string",
+    format: "date-time",
   })
   dataCriacao!: Date
 
@@ -154,6 +218,8 @@ export class PropostaHorarioResponseDto {
   @ApiProperty({
     description: "Data da última atualização",
     example: "2024-01-15T10:30:00.000Z",
+    type: "string",
+    format: "date-time",
   })
   dataAtualizacao!: Date
 

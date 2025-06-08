@@ -29,11 +29,22 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
+  ApiExtraModels,
 } from "@nestjs/swagger"
-import { PropostaHorarioResponseDto } from "./dto/proposta-horario-response.dto"
+import {
+  PropostaHorarioResponseDto,
+  CursoPropostaDto,
+  PeriodoLetivoPropostaDto,
+  CoordenadorPropostaDto,
+} from "./dto/proposta-horario-response.dto"
 
 @ApiTags("propostas-horario")
 @ApiBearerAuth()
+@ApiExtraModels(
+  CursoPropostaDto,
+  PeriodoLetivoPropostaDto,
+  CoordenadorPropostaDto,
+)
 @Controller("propostas-horario")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PropostasHorarioController {

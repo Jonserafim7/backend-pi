@@ -19,6 +19,7 @@ import {
   ApprovePropostaDto,
   RejectPropostaDto,
 } from "./dto/approve-reject-proposta.dto"
+import { SendBackPropostaDto } from "./dto/send-back-proposta.dto"
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"
 import { RolesGuard } from "../auth/guards/roles.guard"
 import { Roles } from "../auth/decorators/roles.decorator"
@@ -255,6 +256,34 @@ export class PropostasHorarioController {
     @Req() req: RequestWithUser,
   ): Promise<PropostaHorarioResponseDto> {
     const proposta = await this.propostasHorarioService.reopen(id, req.user.id)
+    return new PropostaHorarioResponseDto(proposta)
+  }
+
+  /**
+   * Devolve uma proposta aprovada para edição (diretor para coordenador)
+   */
+  @Patch(":id/send-back")
+  @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
+  @ApiOperation({ summary: "Devolver uma proposta aprovada para edição" })
+  @ApiParam({
+    name: "id",
+    description: "ID da proposta de horário",
+    type: String,
+    format: "uuid",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Proposta devolvida para edição com sucesso",
+    type: PropostaHorarioResponseDto,
+  })
+  async sendBack(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() sendBackDto: SendBackPropostaDto,
+  ): Promise<PropostaHorarioResponseDto> {
+    const proposta = await this.propostasHorarioService.sendBackToEdit(
+      id,
+      sendBackDto,
+    )
     return new PropostaHorarioResponseDto(proposta)
   }
 

@@ -13,6 +13,7 @@ import {
   ApprovePropostaDto,
   RejectPropostaDto,
 } from "./dto/approve-reject-proposta.dto"
+import { SendBackPropostaDto } from "./dto/send-back-proposta.dto"
 import { PropostaHorarioComRelacionamentos } from "./types/proposta-horario-com-relacionamentos.type"
 import {
   PropostaHorarioStatus,
@@ -378,6 +379,45 @@ export class PropostasHorarioService {
     })
 
     return propostaReaberta
+  }
+
+  /**
+   * Devolve uma proposta aprovada para edição (diretor para coordenador)
+   * @param id ID da proposta
+   * @param sendBackDto Dados da devolução
+   * @returns Proposta devolvida para edição
+   */
+  async sendBackToEdit(
+    id: string,
+    sendBackDto: SendBackPropostaDto,
+  ): Promise<PropostaHorarioComRelacionamentos> {
+    const proposta = await this.prisma.propostaHorario.findUnique({
+      where: { id },
+      include: this.getIncludeRelacionamentos(),
+    })
+
+    if (!proposta) {
+      throw new NotFoundException("Proposta de horário não encontrada")
+    }
+
+    if (proposta.status !== PropostaHorarioStatus.APROVADA) {
+      throw new BadRequestException(
+        "Só é possível devolver propostas que estão aprovadas",
+      )
+    }
+
+    const propostaDevolvida = await this.prisma.propostaHorario.update({
+      where: { id },
+      data: {
+        status: PropostaHorarioStatus.DRAFT,
+        dataSubmissao: null,
+        dataAprovacaoRejeicao: null,
+        observacoesDiretor: sendBackDto.motivoDevolucao,
+      },
+      include: this.getIncludeRelacionamentos(),
+    })
+
+    return propostaDevolvida
   }
 
   /**

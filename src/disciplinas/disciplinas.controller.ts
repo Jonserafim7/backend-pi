@@ -27,6 +27,7 @@ import {
   ApiParam,
   ApiQuery,
 } from "@nestjs/swagger"
+import { CurrentUser } from "../auth/decorators/current-user.decorator"
 
 /**
  * Controlador para gerenciamento de disciplinas
@@ -213,5 +214,29 @@ export class DisciplinasController {
   })
   async remove(@Param("id") id: string): Promise<void> {
     await this.disciplinasService.remove(id)
+  }
+
+  /**
+   * Lista disciplinas das matrizes curriculares dos cursos que o coordenador coordena
+   *
+   * Endpoint específico para coordenadores que retorna apenas as disciplinas
+   * que fazem parte das matrizes curriculares dos cursos sob sua coordenação
+   */
+  @ApiOperation({
+    summary: "Listar disciplinas das matrizes do coordenador logado",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Lista de disciplinas das matrizes curriculares do coordenador",
+    type: [DisciplinaResponseDto],
+  })
+  @ApiResponse({ status: 401, description: "Não autorizado" })
+  @ApiResponse({ status: 403, description: "Acesso proibido" })
+  @Roles(PapelUsuario.COORDENADOR)
+  @Get("coordenador/minhas-disciplinas")
+  findDisciplinasDoCoordenador(
+    @CurrentUser() user: { id: string; email: string; papel: PapelUsuario },
+  ): Promise<DisciplinaResponseDto[]> {
+    return this.disciplinasService.findDisciplinasDoCoordenador(user.id)
   }
 }

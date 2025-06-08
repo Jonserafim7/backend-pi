@@ -280,4 +280,24 @@ export class DisciplinasOfertadasController {
 
     return this.disciplinasOfertadasService.remove(id, user.id, user.papel)
   }
+
+  @Get("coordenador/minhas-ofertas")
+  @ApiOperation({
+    summary:
+      "Listar disciplinas ofertadas dos cursos do coordenador (Coordenador)",
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      "Lista de disciplinas ofertadas dos cursos que o coordenador coordena.",
+    type: [DisciplinaOfertadaResponseDto],
+  })
+  @ApiResponse({ status: 403, description: "Acesso negado." })
+  @Roles(PapelUsuario.COORDENADOR)
+  async findOfertasDoCoordenador(
+    @Req() request: RequestWithUser,
+  ): Promise<DisciplinaOfertadaResponseDto[]> {
+    const user = request.user
+    return this.disciplinasOfertadasService.findOfertasDoCoordenador(user.id)
+  }
 }

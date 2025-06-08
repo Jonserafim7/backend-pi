@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from "@nestjs/common"
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from "@nestjs/common"
 import { PrismaService } from "../core/prisma/prisma.service"
 import { CreateDisciplinaDto } from "./dto/create-disciplina.dto"
 import { UpdateDisciplinaDto } from "./dto/update-disciplina.dto"
@@ -175,5 +180,74 @@ export class DisciplinasService {
     })
 
     return DisciplinaResponseDto.fromEntity(removedDisciplina)
+  }
+
+  /**
+   * Lista disciplinas das matrizes curriculares dos cursos que o coordenador coordena
+   *
+   * @param coordenadorId - ID do coordenador logado
+   * @returns Lista de disciplinas das matrizes curriculares dos cursos que coordena
+   * @throws BadRequestException se o coordenador não coordena nenhum curso
+   */
+  async findDisciplinasDoCoordenador(
+    coordenadorId: string,
+  ): Promise<DisciplinaResponseDto[]> {
+    // Buscar os cursos que o coordenador coordena
+    const cursosCoordenados = await this.prisma.curso.findMany({
+      where: { idCoordenador: coordenadorId },
+      select: { id: true, nome: true },
+    })
+
+    if (!cursosCoordenados || cursosCoordenados.length === 0) {
+      throw new BadRequestException(
+        "Coordenador não está associado a nenhum curso",
+      )
+    }
+
+    const idsCursosCoordenados = cursosCoordenados.map((curso) => curso.id)
+
+    // Buscar matrizes curriculares dos cursos coordenados
+    const matrizesCurriculares = await this.prisma.matrizCurricular.findMany({
+      where: {
+        idCurso: { in: idsCursosCoordenados },
+      },
+      select: { id: true },
+    })
+
+    if (!matrizesCurriculares || matrizesCurriculares.length === 0) {
+      // Retorna array vazio se não há matrizes curriculares
+      return []
+    }
+
+    const idsMatrizesCurriculares = matrizesCurriculares.map(
+      (matriz) => matriz.id,
+    )
+
+    // Buscar disciplinas que fazem parte das matrizes curriculares
+    const disciplinasDasMatrizes = await this.prisma.matrizDisciplina.findMany({
+      where: {
+        idMatrizCurricular: { in: idsMatrizesCurriculares },
+      },
+      include: {
+        disciplina: true,
+      },
+      orderBy: {
+        disciplina: { nome: "asc" },
+      },
+    })
+
+    // Remover duplicatas (uma disciplina pode estar em múltiplas matrizes)
+    const disciplinasUnicas = new Map<string, any>()
+    disciplinasDasMatrizes.forEach((matrizDisciplina) => {
+      const disciplina = matrizDisciplina.disciplina
+      if (!disciplinasUnicas.has(disciplina.id)) {
+        disciplinasUnicas.set(disciplina.id, disciplina)
+      }
+    })
+
+    // Mapear para o formato de resposta
+    return Array.from(disciplinasUnicas.values()).map((disciplina) =>
+      DisciplinaResponseDto.fromEntity(disciplina),
+    )
   }
 }

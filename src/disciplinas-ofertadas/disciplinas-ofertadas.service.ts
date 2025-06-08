@@ -374,7 +374,7 @@ export class DisciplinasOfertadasService {
       dataToUpdate.quantidadeTurmas = updateDisciplinaOfertadaDto.quantidadeTurmas
     }
     if (updateDisciplinaOfertadaDto.idDisciplina) {
-      // Potentially validate new idDisciplina before setting
+      // Validar se a nova disciplina existe
       const disciplina = await this.prisma.disciplina.findUnique({
         where: { id: updateDisciplinaOfertadaDto.idDisciplina },
       })
@@ -382,8 +382,44 @@ export class DisciplinasOfertadasService {
         throw new NotFoundException(
           `Nova disciplina com ID "${updateDisciplinaOfertadaDto.idDisciplina}" não encontrada.`,
         )
-      // Add similar authorization check for the new discipline if needed for update
-      // For example, check if the new disciplina also belongs to one of the coordinator's courses
+
+      // Validação adicional para coordenadores: a nova disciplina deve pertencer às suas matrizes
+      if (userRole === "COORDENADOR") {
+        const cursosCoordenados = await this.prisma.curso.findMany({
+          where: { idCoordenador: solicitanteId },
+          select: { id: true },
+        })
+        if (!cursosCoordenados || cursosCoordenados.length === 0) {
+          throw new ForbiddenException(
+            "Você não coordena nenhum curso para alterar disciplinas ofertadas.",
+          )
+        }
+        const idsCursosCoordenados = cursosCoordenados.map((c) => c.id)
+
+        const matrizesDosCursosCoordenados =
+          await this.prisma.matrizCurricular.findMany({
+            where: { idCurso: { in: idsCursosCoordenados } },
+            select: { id: true },
+          })
+        const idsMatrizesDosCursosCoordenados = matrizesDosCursosCoordenados.map(
+          (m) => m.id,
+        )
+
+        const disciplinaNaMatrizCoordenada =
+          await this.prisma.matrizDisciplina.findFirst({
+            where: {
+              idMatrizCurricular: { in: idsMatrizesDosCursosCoordenados },
+              idDisciplina: updateDisciplinaOfertadaDto.idDisciplina,
+            },
+          })
+
+        if (!disciplinaNaMatrizCoordenada) {
+          throw new ForbiddenException(
+            `A disciplina "${disciplina.nome}" não pertence a nenhuma matriz curricular dos cursos que você coordena.`,
+          )
+        }
+      }
+
       dataToUpdate.disciplina = {
         connect: { id: updateDisciplinaOfertadaDto.idDisciplina },
       }
@@ -513,5 +549,104 @@ export class DisciplinasOfertadasService {
       where: { id },
     })
     return
+  }
+
+  /**
+   * Lista disciplinas ofertadas dos cursos que o coordenador coordena
+   *
+   * @param coordenadorId - ID do coordenador logado
+   * @returns Lista de disciplinas ofertadas dos cursos que coordena
+   * @throws BadRequestException se o coordenador não coordena nenhum curso
+   */
+  async findOfertasDoCoordenador(
+    coordenadorId: string,
+  ): Promise<DisciplinaOfertadaResponseDto[]> {
+    // Buscar os cursos que o coordenador coordena
+    const cursosCoordenados = await this.prisma.curso.findMany({
+      where: { idCoordenador: coordenadorId },
+      select: { id: true, nome: true },
+    })
+
+    if (!cursosCoordenados || cursosCoordenados.length === 0) {
+      // Se não coordena nenhum curso, retorna array vazio
+      return []
+    }
+
+    const idsCursosCoordenados = cursosCoordenados.map((curso) => curso.id)
+
+    // Buscar matrizes curriculares dos cursos coordenados
+    const matrizesCurriculares = await this.prisma.matrizCurricular.findMany({
+      where: {
+        idCurso: { in: idsCursosCoordenados },
+      },
+      select: { id: true },
+    })
+
+    if (!matrizesCurriculares || matrizesCurriculares.length === 0) {
+      // Se não há matrizes curriculares, retorna array vazio
+      return []
+    }
+
+    const idsMatrizesCurriculares = matrizesCurriculares.map(
+      (matriz) => matriz.id,
+    )
+
+    // Buscar disciplinas que fazem parte das matrizes curriculares
+    const disciplinasDasMatrizes = await this.prisma.matrizDisciplina.findMany({
+      where: {
+        idMatrizCurricular: { in: idsMatrizesCurriculares },
+      },
+      select: { idDisciplina: true },
+    })
+
+    if (!disciplinasDasMatrizes || disciplinasDasMatrizes.length === 0) {
+      // Se não há disciplinas nas matrizes, retorna array vazio
+      return []
+    }
+
+    const idsDisciplinasDasMatrizes = disciplinasDasMatrizes.map(
+      (item) => item.idDisciplina,
+    )
+
+    // Buscar disciplinas ofertadas que correspondem às disciplinas das matrizes
+    const disciplinasOfertadas = await this.prisma.disciplinaOfertada.findMany({
+      where: {
+        idDisciplina: { in: idsDisciplinasDasMatrizes },
+      },
+      include: {
+        disciplina: true,
+        periodoLetivo: true,
+      },
+      orderBy: [
+        { periodoLetivo: { ano: "desc" } },
+        { periodoLetivo: { semestre: "desc" } },
+        { disciplina: { nome: "asc" } },
+      ],
+    })
+
+    // Mapear para o formato de resposta
+    return disciplinasOfertadas.map((oferta) => ({
+      id: oferta.id,
+      idDisciplina: oferta.idDisciplina,
+      idPeriodoLetivo: oferta.idPeriodoLetivo,
+      quantidadeTurmas: oferta.quantidadeTurmas,
+      disciplina:
+        oferta.disciplina ?
+          {
+            id: oferta.disciplina.id,
+            nome: oferta.disciplina.nome,
+            codigo: oferta.disciplina.codigo ?? undefined,
+            cargaHoraria: oferta.disciplina.cargaHoraria,
+            dataCriacao: oferta.disciplina.dataCriacao,
+            dataAtualizacao: oferta.disciplina.dataAtualizacao,
+          }
+        : undefined,
+      periodoLetivo:
+        oferta.periodoLetivo ?
+          PeriodoLetivoResponseDto.fromEntity(oferta.periodoLetivo)
+        : undefined,
+      createdAt: oferta.dataCriacao,
+      updatedAt: oferta.dataAtualizacao,
+    }))
   }
 }

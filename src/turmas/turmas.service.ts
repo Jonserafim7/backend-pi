@@ -630,4 +630,171 @@ export class TurmasService {
       dataAtualizacao: turma.dataAtualizacao,
     }
   }
+
+  /**
+   * Lista turmas dos cursos que o coordenador coordena
+   *
+   * @param coordenadorId - ID do coordenador logado
+   * @param query - Filtros opcionais de query
+   * @returns Lista de turmas dos cursos que coordena
+   */
+  async findTurmasDoCoordenador(
+    coordenadorId: string,
+    query?: ListarTurmasQueryDto,
+  ): Promise<TurmaResponseDto[]> {
+    this.logger.log(`Buscando turmas para o coordenador ID: ${coordenadorId}`)
+
+    // Buscar os cursos que o coordenador coordena
+    const cursosCoordenados = await this.prisma.curso.findMany({
+      where: { idCoordenador: coordenadorId },
+      select: { id: true, nome: true },
+    })
+
+    if (!cursosCoordenados || cursosCoordenados.length === 0) {
+      this.logger.log(`Coordenador ${coordenadorId} não coordena nenhum curso`)
+      return []
+    }
+
+    const idsCursosCoordenados = cursosCoordenados.map((curso) => curso.id)
+
+    // Buscar matrizes curriculares dos cursos coordenados
+    const matrizesCurriculares = await this.prisma.matrizCurricular.findMany({
+      where: {
+        idCurso: { in: idsCursosCoordenados },
+      },
+      select: { id: true },
+    })
+
+    if (!matrizesCurriculares || matrizesCurriculares.length === 0) {
+      this.logger.log(
+        `Nenhuma matriz curricular encontrada para os cursos coordenados`,
+      )
+      return []
+    }
+
+    const idsMatrizesCurriculares = matrizesCurriculares.map(
+      (matriz) => matriz.id,
+    )
+
+    // Buscar disciplinas que fazem parte das matrizes curriculares
+    const disciplinasDasMatrizes = await this.prisma.matrizDisciplina.findMany({
+      where: {
+        idMatrizCurricular: { in: idsMatrizesCurriculares },
+      },
+      select: { idDisciplina: true },
+    })
+
+    if (!disciplinasDasMatrizes || disciplinasDasMatrizes.length === 0) {
+      this.logger.log(`Nenhuma disciplina encontrada nas matrizes curriculares`)
+      return []
+    }
+
+    const idsDisciplinasDasMatrizes = disciplinasDasMatrizes.map(
+      (item) => item.idDisciplina,
+    )
+
+    // Buscar disciplinas ofertadas que correspondem às disciplinas das matrizes
+    const disciplinasOfertadas = await this.prisma.disciplinaOfertada.findMany({
+      where: {
+        idDisciplina: { in: idsDisciplinasDasMatrizes },
+      },
+      select: { id: true },
+    })
+
+    if (!disciplinasOfertadas || disciplinasOfertadas.length === 0) {
+      this.logger.log(`Nenhuma disciplina ofertada encontrada`)
+      return []
+    }
+
+    const idsOfertasDasMatrizes = disciplinasOfertadas.map((oferta) => oferta.id)
+
+    // Construir where clause combinando filtros do coordenador e query params
+    const whereClause: any = {
+      idDisciplinaOfertada: { in: idsOfertasDasMatrizes },
+    }
+
+    // Aplicar filtros adicionais da query se fornecidos
+    if (query?.idDisciplinaOfertada) {
+      whereClause.idDisciplinaOfertada = query.idDisciplinaOfertada
+    }
+    if (query?.idProfessor) {
+      whereClause.idUsuarioProfessor = query.idProfessor
+    }
+    if (query?.idPeriodoLetivo) {
+      whereClause.disciplinaOfertada = {
+        periodoLetivo: { id: query.idPeriodoLetivo },
+      }
+    }
+
+    // Buscar turmas que pertencem às disciplinas ofertadas das matrizes do coordenador
+    const turmas = await this.prisma.turma.findMany({
+      where: whereClause,
+      include: {
+        disciplinaOfertada: {
+          include: { disciplina: true, periodoLetivo: true },
+        },
+        professorAlocado: true,
+      },
+      orderBy: [
+        { disciplinaOfertada: { disciplina: { nome: "asc" } } },
+        { codigoDaTurma: "asc" },
+      ],
+    })
+
+    this.logger.log(
+      `Encontradas ${turmas.length} turmas para o coordenador ${coordenadorId}`,
+    )
+
+    return turmas.map((turma) => this.mapToResponseDto(turma))
+  }
+
+  /**
+   * Lista turmas que o professor leciona
+   *
+   * @param professorId - ID do professor logado
+   * @param query - Filtros opcionais de query
+   * @returns Lista de turmas que o professor leciona
+   */
+  async findTurmasDoProfessor(
+    professorId: string,
+    query?: ListarTurmasQueryDto,
+  ): Promise<TurmaResponseDto[]> {
+    this.logger.log(`Buscando turmas para o professor ID: ${professorId}`)
+
+    // Construir where clause para turmas do professor
+    const whereClause: any = {
+      idUsuarioProfessor: professorId,
+    }
+
+    // Aplicar filtros adicionais da query se fornecidos
+    if (query?.idDisciplinaOfertada) {
+      whereClause.idDisciplinaOfertada = query.idDisciplinaOfertada
+    }
+    if (query?.idPeriodoLetivo) {
+      whereClause.disciplinaOfertada = {
+        periodoLetivo: { id: query.idPeriodoLetivo },
+      }
+    }
+
+    // Buscar turmas que o professor leciona
+    const turmas = await this.prisma.turma.findMany({
+      where: whereClause,
+      include: {
+        disciplinaOfertada: {
+          include: { disciplina: true, periodoLetivo: true },
+        },
+        professorAlocado: true,
+      },
+      orderBy: [
+        { disciplinaOfertada: { disciplina: { nome: "asc" } } },
+        { codigoDaTurma: "asc" },
+      ],
+    })
+
+    this.logger.log(
+      `Encontradas ${turmas.length} turmas para o professor ${professorId}`,
+    )
+
+    return turmas.map((turma) => this.mapToResponseDto(turma))
+  }
 }

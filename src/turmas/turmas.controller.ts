@@ -70,7 +70,7 @@ export class TurmasController {
 
   @Get()
   @ApiOperation({
-    summary: "Listar turmas com filtros (Admin, Coordenador, Diretor)",
+    summary: "Listar turmas baseado no papel do usuário logado",
   })
   @ApiQuery({
     name: "idDisciplinaOfertada",
@@ -92,7 +92,8 @@ export class TurmasController {
   })
   @ApiResponse({
     status: 200,
-    description: "Lista de turmas.",
+    description:
+      "Lista de turmas filtrada automaticamente: ADMIN/DIRETOR veem todas, COORDENADOR vê apenas de seus cursos, PROFESSOR vê apenas suas aulas",
     type: [TurmaResponseDto],
   })
   async findAll(
@@ -100,14 +101,25 @@ export class TurmasController {
     @Req() request: RequestWithUser,
   ): Promise<TurmaResponseDto[]> {
     const user = request.user
-    if (
-      user.papel !== PapelUsuario.ADMIN &&
-      user.papel !== PapelUsuario.COORDENADOR &&
-      user.papel !== PapelUsuario.DIRETOR
-    ) {
-      throw new ForbiddenException("Acesso negado para listar turmas.")
+
+    // Filtro automático baseado no papel do usuário
+    switch (user.papel) {
+      case PapelUsuario.ADMIN:
+      case PapelUsuario.DIRETOR:
+        // Admin e Diretor veem todas as turmas
+        return this.turmasService.findAll(query)
+
+      case PapelUsuario.COORDENADOR:
+        // Coordenador vê apenas turmas dos seus cursos
+        return this.turmasService.findTurmasDoCoordenador(user.id, query)
+
+      case PapelUsuario.PROFESSOR:
+        // Professor vê apenas suas turmas
+        return this.turmasService.findTurmasDoProfessor(user.id, query)
+
+      default:
+        throw new ForbiddenException("Papel de usuário não reconhecido.")
     }
-    return this.turmasService.findAll(query)
   }
 
   @Get("disciplina-ofertada/:idDisciplinaOfertada")

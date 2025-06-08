@@ -29,6 +29,7 @@ import {
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"
 import { RolesGuard } from "../auth/guards/roles.guard"
 import { Roles } from "../auth/decorators/roles.decorator"
+import { CurrentUser } from "../auth/decorators/current-user.decorator"
 import { PapelUsuario } from "@prisma/client"
 
 @ApiTags("Alocações de Horário")
@@ -215,5 +216,22 @@ export class AlocacoesHorariosController {
   })
   async delete(@Param("id") id: string): Promise<void> {
     return this.alocacoesService.delete(id)
+  }
+
+  @Get("minhas-alocacoes")
+  @Roles(PapelUsuario.PROFESSOR)
+  @ApiOperation({
+    summary: "Buscar alocações do professor logado",
+    description: "Busca todas as alocações do professor atualmente logado",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Lista de alocações do professor logado",
+    type: [AlocacaoHorarioResponseDto],
+  })
+  async findMinhasAlocacoes(
+    @CurrentUser() user: { id: string; email: string; papel: PapelUsuario },
+  ): Promise<AlocacaoHorarioResponseDto[]> {
+    return this.alocacoesService.findByProfessor(user.id)
   }
 }

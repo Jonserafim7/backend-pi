@@ -109,6 +109,11 @@ export class AlocacoesHorariosController {
     required: false,
     description: "Filtrar por dia da semana",
   })
+  @ApiQuery({
+    name: "idPropostaHorario",
+    required: false,
+    description: "Filtrar por ID da proposta de horário",
+  })
   @ApiResponse({
     status: 200,
     description: "Lista de alocações encontradas",
@@ -164,6 +169,32 @@ export class AlocacoesHorariosController {
     @Param("idProfessor") idProfessor: string,
   ): Promise<AlocacaoHorarioResponseDto[]> {
     return this.alocacoesService.findByProfessor(idProfessor)
+  }
+
+  @Get("proposta/:idPropostaHorario")
+  @Roles(
+    PapelUsuario.COORDENADOR,
+    PapelUsuario.DIRETOR,
+    PapelUsuario.ADMIN,
+    PapelUsuario.PROFESSOR,
+  )
+  @ApiOperation({
+    summary: "Buscar alocações por proposta",
+    description: "Busca todas as alocações de uma proposta de horário específica",
+  })
+  @ApiParam({
+    name: "idPropostaHorario",
+    description: "ID da proposta de horário",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Lista de alocações da proposta",
+    type: [AlocacaoHorarioResponseDto],
+  })
+  async findByProposta(
+    @Param("idPropostaHorario") idPropostaHorario: string,
+  ): Promise<AlocacaoHorarioResponseDto[]> {
+    return this.alocacoesService.findByProposta(idPropostaHorario)
   }
 
   @Delete(":id")

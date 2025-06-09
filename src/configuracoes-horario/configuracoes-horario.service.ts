@@ -266,36 +266,37 @@ export class ConfiguracoesHorarioService {
         )
         result = updatedConfig
       } else {
-        this.logger.log("Nenhuma configuração existente. Tentando criar nova...")
-        // Para criar uma nova, todos os campos são necessários
-        if (
-          dto.duracaoAulaMinutos === undefined ||
-          dto.numeroAulasPorTurno === undefined ||
-          !dto.inicioTurnoManha ||
-          !dto.inicioTurnoTarde ||
-          !dto.inicioTurnoNoite
-        ) {
-          this.logger.warn(
-            `Tentativa de criar configuração sem todos os campos obrigatórios. DTO: ${JSON.stringify(dto)}`,
-          )
-          throw new BadRequestException(
-            "Para criar uma nova configuração de horário, todos os campos são obrigatórios: duracaoAulaMinutos, numeroAulasPorTurno, inicioTurnoManha, inicioTurnoTarde, inicioTurnoNoite.",
-          )
+        this.logger.log(
+          "Nenhuma configuração existente. Criando nova configuração com valores padrão e campos fornecidos...",
+        )
+
+        // Define valores padrão para campos não fornecidos
+        const defaultValues = {
+          duracaoAulaMinutos: 50, // 50 minutos é um padrão comum
+          numeroAulasPorTurno: 4, // 4 aulas por turno é comum
+          inicioTurnoManha: "07:30",
+          inicioTurnoTarde: "13:30",
+          inicioTurnoNoite: "19:00",
         }
 
         const dataToCreate = {
-          duracaoAulaMinutos: dto.duracaoAulaMinutos,
-          numeroAulasPorTurno: dto.numeroAulasPorTurno,
-          inicioTurnoManha: dto.inicioTurnoManha,
-          inicioTurnoTarde: dto.inicioTurnoTarde,
-          inicioTurnoNoite: dto.inicioTurnoNoite,
+          duracaoAulaMinutos:
+            dto.duracaoAulaMinutos ?? defaultValues.duracaoAulaMinutos,
+          numeroAulasPorTurno:
+            dto.numeroAulasPorTurno ?? defaultValues.numeroAulasPorTurno,
+          inicioTurnoManha:
+            dto.inicioTurnoManha || defaultValues.inicioTurnoManha,
+          inicioTurnoTarde:
+            dto.inicioTurnoTarde || defaultValues.inicioTurnoTarde,
+          inicioTurnoNoite:
+            dto.inicioTurnoNoite || defaultValues.inicioTurnoNoite,
         }
 
         const createdConfig = await this.prisma.configuracaoHorario.create({
           data: dataToCreate,
         })
         this.logger.log(
-          `Configuração criada com sucesso: ${JSON.stringify(createdConfig)}`,
+          `Configuração criada com sucesso usando valores padrão: ${JSON.stringify(createdConfig)}`,
         )
         result = createdConfig
       }

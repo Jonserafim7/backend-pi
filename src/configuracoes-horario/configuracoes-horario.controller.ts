@@ -93,6 +93,7 @@ export class ConfiguracoesHorarioController {
 
   /**
    * Cria ou atualiza a configuração de horário global.
+   * Para criação inicial, valores padrão serão utilizados para campos não fornecidos.
    * Apenas Diretores e Administradores podem acessar este endpoint.
    * @param req Objeto da requisição, usado para logging.
    * @param dto Dados para criar/atualizar a configuração.
@@ -102,7 +103,11 @@ export class ConfiguracoesHorarioController {
    */
   @Put()
   @Roles(PapelUsuario.DIRETOR, PapelUsuario.ADMIN)
-  @ApiOperation({ summary: "Cria ou atualiza a configuração de horário global" })
+  @ApiOperation({
+    summary: "Cria ou atualiza a configuração de horário global",
+    description:
+      "Para criação inicial, valores padrão serão utilizados para campos não fornecidos: duração (50min), aulas por turno (4), manhã (07:30), tarde (13:30), noite (19:00)",
+  })
   @ApiBody({ type: UpsertConfiguracaoHorarioDto })
   @ApiResponse({
     status: HttpStatus.OK,

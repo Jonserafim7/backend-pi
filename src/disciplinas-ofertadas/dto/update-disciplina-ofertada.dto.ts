@@ -1,7 +1,7 @@
 import { PartialType } from "@nestjs/swagger"
 import { CreateDisciplinaOfertadaDto } from "./create-disciplina-ofertada.dto"
 import { ApiPropertyOptional } from "@nestjs/swagger"
-import { IsInt, IsOptional, Min, IsUUID, IsString } from "class-validator"
+import { IsInt, IsOptional, Min, Max, IsUUID, IsString } from "class-validator"
 
 export class UpdateDisciplinaOfertadaDto extends PartialType(
   CreateDisciplinaOfertadaDto,
@@ -28,9 +28,11 @@ export class UpdateDisciplinaOfertadaDto extends PartialType(
     description: "Quantidade de turmas para esta disciplina ofertada",
     example: 2,
     minimum: 1,
+    maximum: 10,
   })
   @IsOptional()
   @IsInt({ message: "A quantidade de turmas deve ser um número inteiro" })
   @Min(1, { message: "A quantidade de turmas deve ser no mínimo 1" })
+  @Max(10, { message: "A quantidade de turmas deve ser no máximo 10" })
   quantidadeTurmas?: number
 }

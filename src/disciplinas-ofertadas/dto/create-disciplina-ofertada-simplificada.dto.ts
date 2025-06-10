@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
-import { IsNotEmpty, IsString, IsInt, Min } from "class-validator"
+import { IsNotEmpty, IsString, IsInt, Min, Max } from "class-validator"
 
 /**
  * DTO para criação simplificada de disciplina ofertada
@@ -19,9 +19,11 @@ export class CreateDisciplinaOfertadaSimplificadaDto {
     description: "Quantidade de turmas para esta disciplina",
     example: 2,
     minimum: 1,
+    maximum: 10,
   })
   @IsNotEmpty({ message: "A quantidade de turmas é obrigatória" })
   @IsInt({ message: "A quantidade de turmas deve ser um número inteiro" })
   @Min(1, { message: "A quantidade de turmas deve ser pelo menos 1" })
+  @Max(10, { message: "A quantidade de turmas deve ser no máximo 10" })
   quantidadeTurmas: number = 1
 }

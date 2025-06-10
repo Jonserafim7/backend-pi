@@ -17,11 +17,18 @@ import { PeriodoLetivoResponseDto } from "../periodos-letivos/dto/periodo-letivo
 export class TurmasService {
   private readonly logger = new Logger(TurmasService.name)
 
+  // Constante para o limite máximo de turmas por oferta
+  private readonly MAX_TURMAS_POR_OFERTA = 10
+
+  // Constante para o limite máximo de turmas por professor por período
+  private readonly MAX_TURMAS_POR_PROFESSOR_POR_PERIODO = 10
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Cria múltiplas turmas para uma disciplina ofertada.
    * Gera códigos de turma sequenciais (T1, T2, ...).
+   * Limitado a no máximo 10 turmas por oferta.
    * @param idDisciplinaOfertada O ID da disciplina ofertada.
    * @param quantidadeTurmas O número de turmas a serem criadas.
    * @returns Uma lista das turmas criadas.
@@ -34,6 +41,14 @@ export class TurmasService {
       `Iniciando criação de ${quantidadeTurmas} turmas para a oferta ID: ${idDisciplinaOfertada}`,
     )
 
+    // NOVA VALIDAÇÃO: Verificar limite máximo de turmas
+    if (quantidadeTurmas > this.MAX_TURMAS_POR_OFERTA) {
+      throw new BadRequestException(
+        `Não é possível criar mais de ${this.MAX_TURMAS_POR_OFERTA} turmas por disciplina ofertada. ` +
+          `Quantidade solicitada: ${quantidadeTurmas}`,
+      )
+    }
+
     const disciplinaOfertada = await this.prisma.disciplinaOfertada.findUnique({
       where: { id: idDisciplinaOfertada },
     })
@@ -44,6 +59,18 @@ export class TurmasService {
       )
       throw new NotFoundException(
         `DisciplinaOfertada com ID "${idDisciplinaOfertada}" não encontrada.`,
+      )
+    }
+
+    // Verificar turmas já existentes
+    const turmasExistentes = await this.prisma.turma.count({
+      where: { idDisciplinaOfertada: idDisciplinaOfertada },
+    })
+
+    if (turmasExistentes + quantidadeTurmas > this.MAX_TURMAS_POR_OFERTA) {
+      throw new BadRequestException(
+        `Não é possível criar ${quantidadeTurmas} turma(s). ` +
+          `Já existem ${turmasExistentes} turma(s) e o limite máximo é ${this.MAX_TURMAS_POR_OFERTA} turmas por oferta.`,
       )
     }
 
@@ -117,6 +144,15 @@ export class TurmasService {
     this.logger.log(
       `Ajustando turmas para oferta ID: ${idDisciplinaOfertada} para ${novaQuantidadeTurmas} turmas.`,
     )
+
+    // NOVA VALIDAÇÃO: Verificar limite máximo de turmas
+    if (novaQuantidadeTurmas > this.MAX_TURMAS_POR_OFERTA) {
+      throw new BadRequestException(
+        `Não é possível ajustar para mais de ${this.MAX_TURMAS_POR_OFERTA} turmas por disciplina ofertada. ` +
+          `Quantidade solicitada: ${novaQuantidadeTurmas}`,
+      )
+    }
+
     const turmasExistentes = await this.prisma.turma.findMany({
       where: { idDisciplinaOfertada },
       select: {
@@ -152,9 +188,9 @@ export class TurmasService {
           turmasAdicionadas++
         }
         turmaIdx++
-        if (turmaIdx > 200) {
+        if (turmaIdx > this.MAX_TURMAS_POR_OFERTA) {
           this.logger.warn(
-            `Loop de nomeação de turma atingiu ${turmaIdx}, interrompendo criação adicional para oferta ${idDisciplinaOfertada}`,
+            `Atingido limite máximo de ${this.MAX_TURMAS_POR_OFERTA} turmas para oferta ${idDisciplinaOfertada}`,
           )
           break
         }
@@ -225,14 +261,14 @@ export class TurmasService {
       )
     }
 
-    // NOVA VALIDAÇÃO: Verificar limite de turmas por oferta
+    // CORREÇÃO: Verificar limite absoluto de turmas (não baseado na quantidadeTurmas da oferta)
     const turmasExistentes = await this.prisma.turma.count({
       where: { idDisciplinaOfertada: createTurmaDto.idDisciplinaOfertada },
     })
 
-    if (turmasExistentes >= disciplinaOfertada.quantidadeTurmas) {
+    if (turmasExistentes >= this.MAX_TURMAS_POR_OFERTA) {
       throw new BadRequestException(
-        `Esta disciplina ofertada já atingiu o limite máximo de ${disciplinaOfertada.quantidadeTurmas} turma(s). ` +
+        `Esta disciplina ofertada já atingiu o limite máximo de ${this.MAX_TURMAS_POR_OFERTA} turma(s). ` +
           `Atualmente existem ${turmasExistentes} turma(s) criadas.`,
       )
     }
@@ -487,10 +523,9 @@ export class TurmasService {
       },
     })
 
-    const LIMITE_TURMAS_POR_PERIODO = 6 // Configurável
-    if (turmasDoFuturo >= LIMITE_TURMAS_POR_PERIODO) {
+    if (turmasDoFuturo >= this.MAX_TURMAS_POR_PROFESSOR_POR_PERIODO) {
       throw new BadRequestException(
-        `Professor "${professor.nome}" já possui ${turmasDoFuturo} turmas neste período. Limite máximo: ${LIMITE_TURMAS_POR_PERIODO} turmas.`,
+        `Professor "${professor.nome}" já possui ${turmasDoFuturo} turmas neste período. Limite máximo: ${this.MAX_TURMAS_POR_PROFESSOR_POR_PERIODO} turmas.`,
       )
     }
 

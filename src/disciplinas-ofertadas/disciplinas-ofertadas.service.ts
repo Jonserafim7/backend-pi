@@ -23,6 +23,9 @@ interface FindAllDisciplinasOfertadasServiceFilters {
 export class DisciplinasOfertadasService {
   private readonly logger = new Logger(DisciplinasOfertadasService.name)
 
+  // Constante para o limite máximo de turmas por oferta
+  private readonly MAX_TURMAS_POR_OFERTA = 10
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly turmasService: TurmasService, // Inject TurmasService
@@ -35,6 +38,20 @@ export class DisciplinasOfertadasService {
   ): Promise<DisciplinaOfertadaResponseDto> {
     const { idDisciplina, idPeriodoLetivo, quantidadeTurmas } =
       createDisciplinaOfertadaDto
+
+    // NOVA VALIDAÇÃO: Verificar limite máximo de turmas
+    if (quantidadeTurmas > this.MAX_TURMAS_POR_OFERTA) {
+      throw new BadRequestException(
+        `Não é possível criar mais de ${this.MAX_TURMAS_POR_OFERTA} turmas por disciplina ofertada. ` +
+          `Quantidade solicitada: ${quantidadeTurmas}`,
+      )
+    }
+
+    if (quantidadeTurmas < 1) {
+      throw new BadRequestException(
+        "A quantidade de turmas deve ser pelo menos 1.",
+      )
+    }
 
     // 1. Validar se a disciplina existe
     const disciplina = await this.prisma.disciplina.findUnique({
@@ -200,6 +217,20 @@ export class DisciplinasOfertadasService {
     userId: string,
     userRole?: string,
   ): Promise<DisciplinaOfertadaResponseDto> {
+    // NOVA VALIDAÇÃO: Verificar limite máximo de turmas
+    if (quantidadeTurmas > this.MAX_TURMAS_POR_OFERTA) {
+      throw new BadRequestException(
+        `Não é possível criar mais de ${this.MAX_TURMAS_POR_OFERTA} turmas por disciplina ofertada. ` +
+          `Quantidade solicitada: ${quantidadeTurmas}`,
+      )
+    }
+
+    if (quantidadeTurmas < 1) {
+      throw new BadRequestException(
+        "A quantidade de turmas deve ser pelo menos 1.",
+      )
+    }
+
     // Buscar o período letivo ativo
     const periodoAtivo = await this.prisma.periodoLetivo.findFirst({
       where: { status: "ATIVO" },
@@ -371,6 +402,22 @@ export class DisciplinasOfertadasService {
     // Prepare data for update, only including fields that are present in the DTO
     const dataToUpdate: Prisma.DisciplinaOfertadaUpdateInput = {} // Typed correctly
     if (updateDisciplinaOfertadaDto.quantidadeTurmas !== undefined) {
+      // NOVA VALIDAÇÃO: Verificar limite máximo de turmas na atualização
+      if (
+        updateDisciplinaOfertadaDto.quantidadeTurmas > this.MAX_TURMAS_POR_OFERTA
+      ) {
+        throw new BadRequestException(
+          `Não é possível atualizar para mais de ${this.MAX_TURMAS_POR_OFERTA} turmas por disciplina ofertada. ` +
+            `Quantidade solicitada: ${updateDisciplinaOfertadaDto.quantidadeTurmas}`,
+        )
+      }
+
+      if (updateDisciplinaOfertadaDto.quantidadeTurmas < 1) {
+        throw new BadRequestException(
+          "A quantidade de turmas deve ser pelo menos 1.",
+        )
+      }
+
       dataToUpdate.quantidadeTurmas = updateDisciplinaOfertadaDto.quantidadeTurmas
     }
     if (updateDisciplinaOfertadaDto.idDisciplina) {

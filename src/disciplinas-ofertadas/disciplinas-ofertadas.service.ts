@@ -155,23 +155,11 @@ export class DisciplinasOfertadasService {
       },
     })
 
-    // 6. Criar turmas automaticamente
-    if (
-      novaDisciplinaOfertada.quantidadeTurmas > 0 &&
-      novaDisciplinaOfertada.id
-    ) {
-      try {
-        await this.turmasService.createTurmasForDisciplinaOfertada(
-          novaDisciplinaOfertada.id,
-          novaDisciplinaOfertada.quantidadeTurmas,
-        )
-      } catch (error) {
-        const e = error as Error
-        console.error(
-          `Falha ao criar turmas para a oferta ${novaDisciplinaOfertada.id}: ${e.message}`,
-        )
-      }
-    }
+    // 6. Oferta criada com sucesso - turmas devem ser criadas manualmente
+    this.logger.log(
+      `Oferta criada com quantidadeTurmas=${novaDisciplinaOfertada.quantidadeTurmas}. ` +
+        `Turmas devem ser criadas manualmente via endpoint POST /turmas.`,
+    )
 
     // Mapear para o DTO de resposta
     return {
@@ -512,29 +500,17 @@ export class DisciplinasOfertadasService {
       include: { disciplina: true, periodoLetivo: true },
     })
 
-    // Adjust turmas if quantidadeTurmas was changed
+    // Log sobre mudança de quantidade de turmas (sem ajuste automático)
     if (
       updateDisciplinaOfertadaDto.quantidadeTurmas !== undefined &&
       updateDisciplinaOfertadaDto.quantidadeTurmas !==
         existingOferta.quantidadeTurmas
     ) {
       this.logger.log(
-        `Quantidade de turmas alterada para oferta ${updatedOferta.id}. Ajustando turmas.`,
+        `Quantidade de turmas alterada para oferta ${updatedOferta.id} ` +
+          `de ${existingOferta.quantidadeTurmas} para ${updatedOferta.quantidadeTurmas}. ` +
+          `Ajuste manual de turmas pode ser necessário.`,
       )
-      try {
-        await this.turmasService.adjustTurmasForDisciplinaOfertada(
-          updatedOferta.id,
-          updatedOferta.quantidadeTurmas, // Use the already updated quantidadeTurmas
-          // We might need a default for numeroVagas if not specified, or make it part of UpdateDisciplinaOfertadaDto
-        )
-      } catch (error) {
-        const e = error as Error
-        this.logger.error(
-          `Falha ao ajustar turmas para a oferta ${updatedOferta.id} durante a atualização: ${e.message}`,
-          e.stack,
-        )
-        // Non-critical error for now, don't fail the whole update
-      }
     }
 
     return {

@@ -44,23 +44,24 @@ export class PropostasHorarioService {
     // Valida se o coordenador é responsável pelo curso
     await this.validateCoordenadorCurso(idCoordenador, createPropostaDto.idCurso)
 
-    // Verifica se já existe uma proposta para este curso e período
+    // REGRA: Apenas 1 proposta por curso por semestre (independente do status)
     const propostaExistente = await this.prisma.propostaHorario.findFirst({
       where: {
         idCurso: createPropostaDto.idCurso,
         idPeriodoLetivo: createPropostaDto.idPeriodoLetivo,
-        status: {
-          in: [
-            PropostaHorarioStatus.DRAFT,
-            PropostaHorarioStatus.PENDENTE_APROVACAO,
-          ],
-        },
       },
     })
 
     if (propostaExistente) {
+      const statusMessage = {
+        [PropostaHorarioStatus.DRAFT]: "em elaboração",
+        [PropostaHorarioStatus.PENDENTE_APROVACAO]: "pendente de aprovação",
+        [PropostaHorarioStatus.APROVADA]: "aprovada",
+        [PropostaHorarioStatus.REJEITADA]: "rejeitada",
+      }[propostaExistente.status]
+
       throw new ConflictException(
-        "Já existe uma proposta em elaboração ou pendente de aprovação para este curso e período letivo",
+        `Já existe uma proposta ${statusMessage} para este curso e período letivo. Apenas uma proposta por curso por semestre é permitida.`,
       )
     }
 
@@ -175,6 +176,34 @@ export class PropostasHorarioService {
 
     if (updatePropostaDto.idPeriodoLetivo) {
       await this.validatePeriodoLetivo(updatePropostaDto.idPeriodoLetivo)
+    }
+
+    // Se está alterando curso OU período, verifica se já existe outra proposta para a nova combinação
+    if (updatePropostaDto.idCurso || updatePropostaDto.idPeriodoLetivo) {
+      const novoIdCurso = updatePropostaDto.idCurso || proposta.idCurso
+      const novoIdPeriodoLetivo =
+        updatePropostaDto.idPeriodoLetivo || proposta.idPeriodoLetivo
+
+      const propostaExistente = await this.prisma.propostaHorario.findFirst({
+        where: {
+          id: { not: id }, // Exclui a proposta atual
+          idCurso: novoIdCurso,
+          idPeriodoLetivo: novoIdPeriodoLetivo,
+        },
+      })
+
+      if (propostaExistente) {
+        const statusMessage = {
+          [PropostaHorarioStatus.DRAFT]: "em elaboração",
+          [PropostaHorarioStatus.PENDENTE_APROVACAO]: "pendente de aprovação",
+          [PropostaHorarioStatus.APROVADA]: "aprovada",
+          [PropostaHorarioStatus.REJEITADA]: "rejeitada",
+        }[propostaExistente.status]
+
+        throw new ConflictException(
+          `Já existe uma proposta ${statusMessage} para este curso e período letivo. Apenas uma proposta por curso por semestre é permitida.`,
+        )
+      }
     }
 
     const propostaAtualizada = await this.prisma.propostaHorario.update({

@@ -221,17 +221,18 @@ export class AlocacoesHorariosController {
   @Get("minhas-alocacoes")
   @Roles(PapelUsuario.PROFESSOR)
   @ApiOperation({
-    summary: "Buscar alocações do professor logado",
-    description: "Busca todas as alocações do professor atualmente logado",
+    summary: "Buscar alocações aprovadas do professor logado",
+    description:
+      "Busca todas as alocações do professor atualmente logado que fazem parte de propostas aprovadas",
   })
   @ApiResponse({
     status: 200,
-    description: "Lista de alocações do professor logado",
+    description: "Lista de alocações aprovadas do professor logado",
     type: [AlocacaoHorarioResponseDto],
   })
   async findMinhasAlocacoes(
     @CurrentUser() user: { id: string; email: string; papel: PapelUsuario },
   ): Promise<AlocacaoHorarioResponseDto[]> {
-    return this.alocacoesService.findByProfessor(user.id)
+    return this.alocacoesService.findAlocacoesAprovadasByProfessor(user.id)
   }
 }

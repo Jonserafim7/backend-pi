@@ -11,7 +11,11 @@ import {
   ValidateAlocacaoDto,
   ValidateAlocacaoResponseDto,
 } from "./dto"
-import { DiaSemana, StatusDisponibilidade } from "@prisma/client"
+import {
+  DiaSemana,
+  StatusDisponibilidade,
+  PropostaHorarioStatus,
+} from "@prisma/client"
 
 @Injectable()
 export class AlocacoesHorariosService {
@@ -101,6 +105,45 @@ export class AlocacoesHorariosService {
       where: {
         turma: {
           idUsuarioProfessor: idProfessor,
+        },
+      },
+      include: {
+        turma: {
+          include: {
+            disciplinaOfertada: {
+              include: {
+                disciplina: true,
+              },
+            },
+            professorAlocado: {
+              select: {
+                id: true,
+                nome: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ diaDaSemana: "asc" }, { horaInicio: "asc" }],
+    })
+
+    return alocacoes.map(this.mapToResponseDto)
+  }
+
+  /**
+   * Busca alocações aprovadas por professor (apenas de propostas aprovadas)
+   */
+  async findAlocacoesAprovadasByProfessor(
+    idProfessor: string,
+  ): Promise<AlocacaoHorarioResponseDto[]> {
+    const alocacoes = await this.prisma.alocacaoHorario.findMany({
+      where: {
+        turma: {
+          idUsuarioProfessor: idProfessor,
+        },
+        propostaHorario: {
+          status: PropostaHorarioStatus.APROVADA,
         },
       },
       include: {

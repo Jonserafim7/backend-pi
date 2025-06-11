@@ -17,7 +17,8 @@ import { PeriodoLetivoResponseDto } from "../periodos-letivos/dto/periodo-letivo
 export class TurmasService {
   private readonly logger = new Logger(TurmasService.name)
 
-  // Constante para o limite máximo de turmas por oferta
+  // Constante mantida apenas para validações gerais (não utilizada na criação de turmas)
+  // O limite real é definido no campo quantidadeTurmas da disciplina ofertada
   private readonly MAX_TURMAS_POR_OFERTA = 10
 
   // Constante para o limite máximo de turmas por professor por período
@@ -27,8 +28,11 @@ export class TurmasService {
 
   /**
    * Cria uma nova turma individual
+   * Valida se o limite de turmas definido na disciplina ofertada não foi excedido
    * @param createTurmaDto - Dados da turma a ser criada
    * @returns Promise com a turma criada
+   * @throws BadRequestException se exceder o limite de turmas da disciplina ofertada
+   * @throws NotFoundException se a disciplina ofertada não existir
    */
   async create(createTurmaDto: CreateTurmaDto): Promise<TurmaResponseDto> {
     this.logger.log(
@@ -46,14 +50,14 @@ export class TurmasService {
       )
     }
 
-    // Verificar limite básico de turmas
+    // Verificar limite de turmas baseado na quantidade definida na disciplina ofertada
     const turmasExistentes = await this.prisma.turma.count({
       where: { idDisciplinaOfertada: createTurmaDto.idDisciplinaOfertada },
     })
 
-    if (turmasExistentes >= this.MAX_TURMAS_POR_OFERTA) {
+    if (turmasExistentes >= disciplinaOfertada.quantidadeTurmas) {
       throw new BadRequestException(
-        `Esta disciplina ofertada já atingiu o limite máximo de ${this.MAX_TURMAS_POR_OFERTA} turma(s). ` +
+        `Esta disciplina ofertada já atingiu o limite máximo de ${disciplinaOfertada.quantidadeTurmas} turma(s) definido na oferta. ` +
           `Atualmente existem ${turmasExistentes} turma(s) criadas.`,
       )
     }

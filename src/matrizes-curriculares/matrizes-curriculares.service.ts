@@ -55,6 +55,20 @@ export class MatrizesCurricularesService {
     // Usar o primeiro curso do coordenador (assumindo que um coordenador tem apenas um curso)
     const idCurso = coordenador.cursosCoordenados[0].id
 
+    // Verificar se já existe uma matriz curricular com o mesmo nome para o curso
+    const matrizExistente = await this.prisma.matrizCurricular.findFirst({
+      where: {
+        nome,
+        idCurso,
+      },
+    })
+
+    if (matrizExistente) {
+      throw new BadRequestException(
+        `Já existe uma matriz curricular com o nome "${nome}" para este curso. Escolha um nome diferente.`,
+      )
+    }
+
     // Verificar se todas as disciplinas existem
     if (disciplinasIds && disciplinasIds.length > 0) {
       const disciplinasExistentes = await this.prisma.disciplina.findMany({
@@ -263,6 +277,23 @@ export class MatrizesCurricularesService {
         )
         throw new BadRequestException(
           `Disciplinas não encontradas: ${disciplinasNaoEncontradas.join(", ")}`,
+        )
+      }
+    }
+
+    // Verificar se o nome não está sendo duplicado (se o nome está sendo alterado)
+    if (nome && nome !== matrizExiste.nome) {
+      const matrizComMesmoNome = await this.prisma.matrizCurricular.findFirst({
+        where: {
+          nome,
+          idCurso: matrizExiste.idCurso,
+          id: { not: id }, // Excluir a própria matriz da busca
+        },
+      })
+
+      if (matrizComMesmoNome) {
+        throw new BadRequestException(
+          `Já existe uma matriz curricular com o nome "${nome}" para este curso. Escolha um nome diferente.`,
         )
       }
     }

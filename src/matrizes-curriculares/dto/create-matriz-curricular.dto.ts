@@ -10,7 +10,7 @@ import { IsArray, IsNotEmpty, IsString, IsUUID } from "class-validator"
  */
 export class CreateMatrizCurricularDto {
   @ApiProperty({
-    description: "Nome da matriz curricular",
+    description: "Nome da matriz curricular (deve ser único para o curso)",
     example: "Matriz 2023.1 - Engenharia de Software",
   })
   @IsNotEmpty({ message: "O nome da matriz curricular é obrigatório" })

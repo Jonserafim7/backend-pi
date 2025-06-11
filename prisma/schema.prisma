@@ -123,6 +123,7 @@ model MatrizCurricular {
   curso                       Curso                @relation(fields: [idCurso], references: [id], onDelete: Cascade)
   disciplinasDaMatriz         MatrizDisciplina[]
 
+  @@unique([nome, idCurso], name: "idx_matriz_nome_curso_unico")
   @@map("matrizes_curriculares")
 }
 
